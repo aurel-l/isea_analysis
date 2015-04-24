@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# takes family and agent admixture files as positional arguments
+# combines them into one csv file (stdout)
+
 echo 'run,Label,DnaAdmixture,AutosomeAdmixture,XChrAdmixture,MitoAdmixture,YChrAdmixture'
 
 for f

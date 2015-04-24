@@ -2,15 +2,29 @@
 
 import argparse
 import sys
+import os
+import yaml
 import pymysql
+
+# load config file
+try:
+    config_file = open(
+        os.path.join(os.path.dirname(__file__), 'config.yaml'),
+        'r'
+    )
+except FileNotFoundError:
+    print('This script expects a config.yaml file')
+    print('It must contain at least a user and a passwd field')
+    raise
+config = yaml.load(config_file)
 
 # variables
 var = {
-    'host':   'localhost',
-    'port':   3306,
-    'user':   'aluciani',
-    'passwd': 'db',
-    'db':     'repast',
+    'host':   config.get('host', 'localhost'),
+    'port':   config.get('port', 3306),
+    'user':   config.get('user'),
+    'passwd': config.get('passwd'),
+    'db':     config.get('db', 'repast'),
     'defaults': [
         'batch_param.run', 'batch_param.date', 'migrationProb',
         'startingDistributionFile', 'modelVersion', 'randomSeed',

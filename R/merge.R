@@ -1,4 +1,5 @@
 #!/usr/bin/Rscript
+library(argparse)
 
 # variable defaults
 variables.output = '' # will redirect to stdout
@@ -47,7 +48,7 @@ merged = merge(
     imports.admix
 )
 
-#
+# write as csv file to chosen output
 write.csv(
     merged,
     file = variables.output,
