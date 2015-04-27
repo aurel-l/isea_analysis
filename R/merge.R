@@ -1,27 +1,33 @@
 #!/usr/bin/Rscript
-library(argparse)
-
-# variable defaults
-variables.output = '' # will redirect to stdout
+suppressMessages(library(argparse))
 
 #CLI arguments
-arguments = commandArgs(trailingOnly = TRUE)
-if (length(arguments) >= 1) {
-    variables.admixFile = arguments[1]
-    if (length(arguments) >= 2) {
-        variables.paramFile = arguments[2]
-        if (length(arguments) >= 3) {
-            variables.output = arguments[3]
-        }
-    } else {
-        # guesses the name of the param file if not provided
-        variables.paramFile = sub(".txt", ".batch_param_map.txt", variables.admixFile)
-    }
+parser = ArgumentParser(
+    description = 'Merge admix and batch_param files into a DB-like output'
+)
+
+parser$add_argument(
+    'admix', type = 'character', help = 'path to the admix file'
+)
+parser$add_argument(
+    'batch_param', type = 'character', nargs = '?', default = '',
+    help = 'path to the batch_param file, tries to find it in the same folder than admix file if not provided'
+)
+parser$add_argument(
+    'output', type = 'character', nargs = '?', default = '',
+    help = 'output file, if not provided defaults to stdout'
+)
+
+args = parser$parse_args()
+
+if (args$batch_param == '') {
+    # guesses the name of the param file if not provided
+    args$batch_param = sub(".txt", ".batch_param_map.txt", args$admix)
 }
 
 # parses files
-imports.admix = read.csv(variables.admixFile)
-imports.param = read.csv(variables.paramFile)
+imports.admix = read.csv(args$admix)
+imports.param = read.csv(args$batch_param)
 
 # adds island information
 imports.admix['Island'] = lapply(
@@ -51,6 +57,6 @@ merged = merge(
 # write as csv file to chosen output
 write.csv(
     merged,
-    file = variables.output,
+    file = args$output,
     row.names = FALSE
 )
