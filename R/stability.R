@@ -1,6 +1,8 @@
 #!/usr/bin/Rscript
+suppressMessages(library(argparse))
 
 #variables
+debug = FALSE
 variables.summaryNames = c(
     'DnaAdmixture', 'AutosomeAdmixture', 'XChrAdmixture',
     'MitoAdmixture', 'YChrAdmixture'
@@ -10,27 +12,31 @@ variables.paramNames = c(
     'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
 )
 variables.infoNames = c('Label', 'Island')
-#variables.admixFile = '../../isea/isea/output/admixturebynode.2015.Mar.18.20_30_01.txt'
-variables.orderFile = '../Data/isea_admixture_data_for_comparison_2.csv'
 variables.now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 
-#CLI arguments
-arguments = commandArgs(trailingOnly = TRUE)
-if (length(arguments) >= 1) {
-    variables.orderFile = arguments[1]
-    if (length(arguments) >= 2) {
-        variables.admixFile = arguments[2]
-    } else {
-        variables.admixFile = file('stdin')
-    }
+if (debug) {
+    args$order = ''
+    args$admix = ''
+} else {
+    #CLI arguments
+    parser = ArgumentParser(
+        description = 'Analyse the stability of a fixed set of parameters'
+    )
+
+    parser$add_argument(
+        'order', type = 'character', help = 'path to the order file'
+    )
+    parser$add_argument(
+        'admix', type = 'character', nargs = '?', default = 'stdin',
+        help = 'path to the admix file, defaults to stdin'
+    )
+
+    args = parser$parse_args()
 }
 
-#variables.paramFile = sub('.txt', '.batch_param_map.txt', variables.admixFile)
-
 #load data
-imports.order = read.csv(variables.orderFile)[c('Island', 'order')]
-imports.admix = read.csv(variables.admixFile)
-#imports.param = read.csv(variables.paramFile)
+imports.order = read.csv(args$order)[c('Island', 'order')]
+imports.admix = read.csv(args$admix)
 nRuns = length(unique(imports.admix$run))
 
 #check random seeds are unique

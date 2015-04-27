@@ -1,28 +1,36 @@
 #!/usr/bin/Rscript
 suppressMessages(library(argparse))
 
-#CLI arguments
-parser = ArgumentParser(
-    description = 'Merge admix and batch_param files into a DB-like output'
-)
+debug = FALSE
 
-parser$add_argument(
-    'admix', type = 'character', help = 'path to the admix file'
-)
-parser$add_argument(
-    'batch_param', type = 'character', nargs = '?', default = '',
-    help = 'path to the batch_param file, tries to find it in the same folder than admix file if not provided'
-)
-parser$add_argument(
-    'output', type = 'character', nargs = '?', default = '',
-    help = 'output file, if not provided defaults to stdout'
-)
+if (debug) {
+    args$admix = ''
+    args$batch_param = ''
+    args$output = ''
+} else {
+    #CLI arguments
+    parser = ArgumentParser(
+        description = 'Merge admix and batch_param files into a DB-like output'
+    )
 
-args = parser$parse_args()
+    parser$add_argument(
+        'admix', type = 'character', help = 'path to the admix file'
+    )
+    parser$add_argument(
+        'batch_param', type = 'character', nargs = '?', default = '',
+        help = 'path to the batch_param file, tries to find it in the same folder than admix file if not provided'
+    )
+    parser$add_argument(
+        'output', type = 'character', nargs = '?', default = '',
+        help = 'output file, if not provided defaults to stdout'
+    )
 
-if (args$batch_param == '') {
-    # guesses the name of the param file if not provided
-    args$batch_param = sub(".txt", ".batch_param_map.txt", args$admix)
+    args = parser$parse_args()
+
+    if (args$batch_param == '') {
+        # guesses the name of the param file if not provided
+        args$batch_param = sub(".txt", ".batch_param_map.txt", args$admix)
+    }
 }
 
 # parses files
