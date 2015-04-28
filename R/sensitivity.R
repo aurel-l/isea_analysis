@@ -49,7 +49,6 @@ if (!args$changing %in% variables.paramNames) {
     stop('not a valid parameter')
 }
 
-
 #load data
 imports.admix = read.csv(args$admix)
 imports.order = read.csv(args$order)[c('Island', 'order', 'longitude', 'latitude')]
@@ -214,8 +213,8 @@ plot(
 axis(
     1,
     at = 1:length(unlist(unique(summaryData2.SquaredDSum[args$changing]))),
-    labels = sub(
-        'starting_distribution_', '',
+    labels = gsub(
+        '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
         unlist(unique(summaryData2.SquaredDSum[args$changing]))
     )
 )
@@ -273,8 +272,8 @@ if (isNum) {
     axis(
         1,
         at = (1:length(unlist(unique(summaryData2.SquaredDSum[args$changing]))))-0.5,
-        labels = sub(
-            'starting_distribution_', '',
+        labels = gsub(
+            '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
             unlist(unique(summaryData2.SquaredDSum[args$changing]))
         )
     )
@@ -327,8 +326,8 @@ boxplot(
 axis(
     1,
     at = 1:length(unlist(unique(summaryData2.SquaredDSum[args$changing]))),
-    labels = sub(
-        'starting_distribution_', '',
+    labels = gsub(
+        '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
         unlist(unique(summaryData2.SquaredDSum[args$changing]))
     )
 )
