@@ -15,6 +15,7 @@ variables.infoNames = c('Label', 'Island')
 variables.now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 
 if (debug) {
+    args = list()
     args$order = ''
     args$admix = ''
 } else {

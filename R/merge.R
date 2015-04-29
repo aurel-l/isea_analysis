@@ -4,6 +4,7 @@ suppressMessages(library(argparse))
 debug = FALSE
 
 if (debug) {
+    args = list()
     args$admix = ''
     args$batch_param = ''
     args$output = ''

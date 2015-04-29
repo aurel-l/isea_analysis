@@ -67,7 +67,6 @@ if (dim(randomSeeds)[1] / dim(unique(imports.admix['Island']))[1] != dim(unique(
 
 # merges admix and order
 merged = merge(
-    #merged,
     imports.admix,
     imports.order,
     by = 'Island',
@@ -174,15 +173,25 @@ values = merge(
     imports.order,
     by = 'Island'
 )
-admix = values$DnaAdmixture
+admix = list()
+admix$AutosomeAdmixture = values$AutosomeAdmixture
+admix$XChrAdmixture = values$XChrAdmixture
 
-summaryData3 = matrix(
+summaryData3 = list()
+summaryData3$AutosomeAdmixture = data.frame(matrix(
     nrow = length(summaryData.means$randomSeed) / length(unique(summaryData.means$Island)),
     ncol = 2
-)
-colnames(summaryData3) = c(args$changing, 'mantel')
+))
+summaryData3$XChrAdmixture = data.frame(matrix(
+    nrow = length(summaryData.means$randomSeed) / length(unique(summaryData.means$Island)),
+    ncol = 2
+))
+colnames(summaryData3$AutosomeAdmixture) = c(args$changing, 'mantel')
+colnames(summaryData3$XChrAdmixture) = c(args$changing, 'mantel')
 count = 1
-tmp.admix = dist(admix)
+tmp.admix = list()
+tmp.admix$AutosomeAdmixture = dist(admix$AutosomeAdmixture)
+tmp.admix$XChrAdmixture = dist(admix$XChrAdmixture)
 tmp.pos = dist1(matrix(cbind(values$longitude, values$latitude), ncol = 2))
 
 for(seed in unique(summaryData.means$randomSeed)) {
@@ -193,29 +202,44 @@ for(seed in unique(summaryData.means$randomSeed)) {
         by = 'Island'
     )
     res = mantel.partial(
-        tmp.admix,
-        dist(set$DnaAdmixture),
+        tmp.admix$AutosomeAdmixture,
+        dist(set$AutosomeAdmixture),
         tmp.pos,
         permutations = 99
     )
-    summaryData3[count,] = c(
-        set[1, args$changing],
+    summaryData3$AutosomeAdmixture[count,] = c(
+        as.character(set[1, args$changing]),
+        res$statistic
+    )
+    res = mantel.partial(
+        tmp.admix$XChrAdmixture,
+        dist(set$XChrAdmixture),
+        tmp.pos,
+        permutations = 99
+    )
+    summaryData3$XChrAdmixture[count,] = c(
+        as.character(set[1, args$changing]),
         res$statistic
     )
     count = count + 1
 }
 
+summaryData3$AutosomeAdmixture[, args$changing] = as.factor(summaryData3$AutosomeAdmixture[, args$changing])
+summaryData3$AutosomeAdmixture$mantel = as.numeric(summaryData3$AutosomeAdmixture$mantel)
+summaryData3$XChrAdmixture[, args$changing] = as.factor(summaryData3$XChrAdmixture[, args$changing])
+summaryData3$XChrAdmixture$mantel = as.numeric(summaryData3$XChrAdmixture$mantel)
+
 plot(
-    as.data.frame(table(summaryData3[, args$changing])),
+    as.data.frame(table(summaryData3$Auto[, args$changing])),
     main = paste('counts of every different', args$changing),
     ylab = 'count', xlab = args$changing, xaxt = 'n'
 )
 axis(
     1,
-    at = 1:length(unlist(unique(summaryData2.SquaredDSum[args$changing]))),
+    at = summaryData3$AutosomeAdmixture[, args$changing],
     labels = gsub(
         '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
-        unlist(unique(summaryData2.SquaredDSum[args$changing]))
+        summaryData3$AutosomeAdmixture[, args$changing]
     )
 )
 
@@ -225,65 +249,65 @@ graphics.off()
 isNum = is.numeric(unlist(summaryData2.SquaredDSum[args$changing]))
 png(
     paste0('comparisons-', args$changing, '-', variables.now, '.png'),
-    width = 1000, height = 1200
+    width = 1400, height = 1000
 )
-par(mfrow = c(2, 1))
-if (isNum) {
-    plot(
-        NA,
-        xlab = args$changing, ylab = 'SquaredDistance of admixture',
-        xlim = c(0, max(summaryData2.SquaredDSum[args$changing])),
-        ylim = c(0, max(summaryData2.SquaredDSum[variables.summaryNames])),
-        main = paste('Sum of squared distances of admixture in relation to', args$changing)
-    )
-    i = 0
-    for (adm in variables.summaryNames) {
-        i = i + 1
-        points(
-            as.vector(unlist(summaryData2.SquaredDSum[args$changing])),
-            as.vector(unlist(summaryData2.SquaredDSum[adm])),
-            col = i, pch = i
-        )
-    }
-} else {
-    plot(
-        NA,
-        xlab = args$changing, ylab = 'SquaredDistance of admixture',
-        xlim = c(0, length(unlist(unique(summaryData2.SquaredDSum[args$changing])))),
-        xaxt = "n",
-        ylim = c(0, max(summaryData2.SquaredDSum[variables.summaryNames])),
-        main = paste('Sum of squared distances of admixture in relation to', args$changing)
-    )
-    p = -0.3
-    for (param in unlist(unique(summaryData2.SquaredDSum[args$changing]))) {
-        p = p + 0.7
-        i = 0
-        for (adm in variables.summaryNames) {
-            i = i + 1
-            v = unlist(summaryData2.SquaredDSum[summaryData2.SquaredDSum[args$changing] == param,adm])
-            points(
-                rep(p, length(v)),
-                as.vector(v),
-                col = i, pch = i
-            )
-            p = p + 0.1
-        }
-    }
-    axis(
-        1,
-        at = (1:length(unlist(unique(summaryData2.SquaredDSum[args$changing]))))-0.5,
-        labels = gsub(
-            '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
-            unlist(unique(summaryData2.SquaredDSum[args$changing]))
-        )
-    )
-}
-
-legend(
-    x = 'bottomleft',
-    legend = variables.summaryNames,
-    col = 1:i, pch = 1:i
-)
+par(mfrow = c(length(summaryData3), length(summaryData3)))
+# if (isNum) {
+#     plot(
+#         NA,
+#         xlab = args$changing, ylab = 'SquaredDistance of admixture',
+#         xlim = c(0, max(summaryData2.SquaredDSum[args$changing])),
+#         ylim = c(0, max(summaryData2.SquaredDSum[variables.summaryNames])),
+#         main = paste('Sum of squared distances of admixture in relation to', args$changing)
+#     )
+#     i = 0
+#     for (adm in variables.summaryNames) {
+#         i = i + 1
+#         points(
+#             as.vector(unlist(summaryData2.SquaredDSum[args$changing])),
+#             as.vector(unlist(summaryData2.SquaredDSum[adm])),
+#             col = i, pch = i
+#         )
+#     }
+# } else {
+#     plot(
+#         NA,
+#         xlab = args$changing, ylab = 'SquaredDistance of admixture',
+#         xlim = c(0, length(unlist(unique(summaryData2.SquaredDSum[args$changing])))),
+#         xaxt = "n",
+#         ylim = c(0, max(summaryData2.SquaredDSum[variables.summaryNames])),
+#         main = paste('Sum of squared distances of admixture in relation to', args$changing)
+#     )
+#     p = -0.3
+#     for (param in unlist(unique(summaryData2.SquaredDSum[args$changing]))) {
+#         p = p + 0.7
+#         i = 0
+#         for (adm in variables.summaryNames) {
+#             i = i + 1
+#             v = unlist(summaryData2.SquaredDSum[summaryData2.SquaredDSum[args$changing] == param,adm])
+#             points(
+#                 rep(p, length(v)),
+#                 as.vector(v),
+#                 col = i, pch = i
+#             )
+#             p = p + 0.1
+#         }
+#     }
+#     axis(
+#         1,
+#         at = (1:length(unlist(unique(summaryData2.SquaredDSum[args$changing]))))-0.5,
+#         labels = gsub(
+#             '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
+#             unlist(unique(summaryData2.SquaredDSum[args$changing]))
+#         )
+#     )
+# }
+#
+# legend(
+#     x = 'bottomleft',
+#     legend = variables.summaryNames,
+#     col = 1:i, pch = 1:i
+# )
 # summaryData2.SquaredDSum[c(variables.summaryNames, 'run')] = aggregate(
 #     . ~ run,
 #     data = summaryData2.SquaredD[c(variables.summaryNames, 'run')],
@@ -316,21 +340,43 @@ legend(
 #     dist1(matrix(cbind(values$longitude, values$latitude), ncol = 2))
 # )
 
-boxplot(
-    as.formula(paste('mantel ~', args$changing)),
-    data = summaryData3,
-    main = paste('matrix correlation (partial Mantel test) between real and simulated DNA Admixture data'),
-    ylab = 'Correlation', ylim = c(-1, 1),
-    xlab = args$changing, xaxt = 'n'
-)
-axis(
-    1,
-    at = 1:length(unlist(unique(summaryData2.SquaredDSum[args$changing]))),
-    labels = gsub(
-        '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
-        unlist(unique(summaryData2.SquaredDSum[args$changing]))
+for (i in 1:length(summaryData3)) {
+    boxplot(
+        as.formula(paste(names(summaryData3)[i], '~', args$changing)),
+        data = summaryData2.SquaredDSum,
+        main = paste('Sum of squared distances of', names(summaryData3)[i], 'in relation to', args$changing),
+        ylab = 'Sum of squared distances of admixture',
+        ylim = c(0, ceiling(max(summaryData2.SquaredDSum[names(summaryData3)[i]]))),
+        xlab = args$changing, xaxt = 'n'
     )
-)
+    axis(
+        1,
+        at = summaryData2.SquaredDSum[, args$changing],
+        #las = 2, # vertical labels
+        labels=gsub(
+            '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
+            summaryData2.SquaredDSum[, args$changing]
+        )
+    )
+}
+
+for (i in 1:length(summaryData3)) {
+    boxplot(
+        as.formula(paste('mantel ~', args$changing)),
+        data = summaryData3[[i]],
+        main = paste('matrix correlation (partial Mantel test) between real and simulated', names(summaryData3)[i], ' data'),
+        ylab = 'Correlation', ylim = c(-1, 1),
+        xlab = args$changing, xaxt = 'n'
+    )
+    axis(
+        1,
+        at = summaryData3[[i]][, args$changing],
+        #las = 2, # vertical labels
+        labels=gsub(
+            '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
+            summaryData3[[i]][, args$changing]
+        )
+    )
+}
 
 graphics.off()
-
