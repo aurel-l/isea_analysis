@@ -18,6 +18,7 @@ variables.paramNames = c(
 variables.now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 
 if (debug) {
+    args = list()
     args$order = ''
     args$real = ''
     args$changing = 'migrationProb'
@@ -108,7 +109,7 @@ png(
     paste0('sensitivity-', args$changing, '-', variables.now, '.png'),
     width = 1000, height = 1200
 )
-par(mfrow = c(2, 1))
+par(mfrow = c(2, 1), oma = c(1, 0, 0, 0))
 plot(
     NA,
     col = 1, pch = 1, xaxt = 'n',
@@ -243,6 +244,7 @@ axis(
     )
 )
 
+mtext(args$admix, side = 1, outer = TRUE)
 graphics.off()
 
 #plot
@@ -251,7 +253,7 @@ png(
     paste0('comparisons-', args$changing, '-', variables.now, '.png'),
     width = 1400, height = 1000
 )
-par(mfrow = c(length(summaryData3), length(summaryData3)))
+par(mfrow = c(length(summaryData3), length(summaryData3)), oma = c(1, 0, 0, 0))
 # if (isNum) {
 #     plot(
 #         NA,
@@ -352,7 +354,7 @@ for (i in 1:length(summaryData3)) {
     axis(
         1,
         at = summaryData2.SquaredDSum[, args$changing],
-        #las = 2, # vertical labels
+        #las = 2, # vertical label
         labels=gsub(
             '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
             summaryData2.SquaredDSum[, args$changing]
@@ -371,7 +373,6 @@ for (i in 1:length(summaryData3)) {
     axis(
         1,
         at = summaryData3[[i]][, args$changing],
-        #las = 2, # vertical labels
         labels=gsub(
             '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
             summaryData3[[i]][, args$changing]
@@ -379,4 +380,5 @@ for (i in 1:length(summaryData3)) {
     )
 }
 
+mtext(args$admix, side = 1, outer = TRUE)
 graphics.off()

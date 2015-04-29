@@ -86,7 +86,7 @@ png(
     paste0('stability-', variables.now, '.png'),
     width = 1300, height = 1100
 )
-par(mfrow = c(3, 2))
+par(mfrow = c(3, 2), oma = c(1, 0, 0, 0))
 boxplot(
     DnaAdmixture~factor(Island, levels = unique(merged$Island)),
     data = summaryData.means,
@@ -122,4 +122,5 @@ boxplot(
     ylab = 'Y Chromosome Admixture',
     xlab = 'Zone'
 )
+mtext(args$admix, side = 1, outer = TRUE)
 graphics.off()
