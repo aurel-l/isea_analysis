@@ -230,9 +230,11 @@ summaryData3$AutosomeAdmixture$mantel = as.numeric(summaryData3$AutosomeAdmixtur
 summaryData3$XChrAdmixture[, args$changing] = as.factor(summaryData3$XChrAdmixture[, args$changing])
 summaryData3$XChrAdmixture$mantel = as.numeric(summaryData3$XChrAdmixture$mantel)
 
+freq = as.data.frame(table(summaryData3$Auto[, args$changing]))
 plot(
-    as.data.frame(table(summaryData3$Auto[, args$changing])),
+    freq,
     main = paste('counts of every different', args$changing),
+    ylim = c(0, max(freq$Freq)),
     ylab = 'count', xlab = args$changing, xaxt = 'n'
 )
 axis(
@@ -353,11 +355,11 @@ for (i in 1:length(summaryData3)) {
     )
     axis(
         1,
-        at = summaryData2.SquaredDSum[, args$changing],
+        at = summaryData3[[i]][, args$changing],
         #las = 2, # vertical label
         labels=gsub(
             '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
-            summaryData2.SquaredDSum[, args$changing]
+            summaryData3[[i]][, args$changing]
         )
     )
 }
