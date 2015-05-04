@@ -59,11 +59,14 @@ variables.comparedIslands = unlist(imports.real[!is.na(imports.real$DnaAdmixture
 
 # checks
 if (dim(unique(imports.admix[args$changing]))[1] == 1) {
+    print(paste(args$changing, 'always has value of', imports.admix[1, args$changing]))
     stop('analysis can\'t be done if parameter doesn\'t change')
 }
-randomSeeds = imports.admix['randomSeed']
-if (dim(randomSeeds)[1] / dim(unique(imports.admix['Island']))[1] != dim(unique(randomSeeds))[1]) {
-    stop('found a repeated random seed')
+tab = table(imports.admix['randomSeed'])
+if (min(tab) != max(tab)) {
+    print('repeated randomSeeds:')
+    print(names(tab[tab == max(tab)]))
+    stop('found at least one repeated random seed')
 }
 
 # merges admix and order
@@ -73,6 +76,7 @@ merged = merge(
     by = 'Island',
 )
 merged = merged[order(merged$order),]
+merged$Island = factor(merged$Island)
 
 # aggregates
 summaryData.means = aggregate(
@@ -88,21 +92,28 @@ summaryData.SD = aggregate(
     FUN = sd
 )
 
-summaryData.var = aggregate(
-    . ~ Island,
-    data = summaryData.means,
-    FUN = var
-)
-summaryData.var = merge(
-    summaryData.var[c(variables.summaryNames, 'Island')],
+summaryData.SD = merge(
+    summaryData.SD[c(variables.summaryNames, 'Island')],
     imports.order,
     by = 'Island'
 )
-summaryData.var = summaryData.var[order(summaryData.var['order']),]
+summaryData.SD = summaryData.SD[order(summaryData.SD['order']),]
 
-summaryData.meanSD = colMeans(
-    subset(summaryData.SD, select = variables.summaryNames)
-)
+# summaryData.var = aggregate(
+#     . ~ Island,
+#     data = summaryData.means,
+#     FUN = var
+# )
+# summaryData.var = merge(
+#     summaryData.var[c(variables.summaryNames, 'Island')],
+#     imports.order,
+#     by = 'Island'
+# )
+# summaryData.var = summaryData.var[order(summaryData.var['order']),]
+
+# summaryData.meanSD = colMeans(
+#     subset(summaryData.SD, select = variables.summaryNames)
+# )
 
 #plots
 png(
@@ -113,16 +124,16 @@ par(mfrow = c(2, 1), oma = c(1, 0, 0, 0))
 plot(
     NA,
     col = 1, pch = 1, xaxt = 'n',
-    xlab = 'Zone', ylab = 'Admixture variance',
-    xlim = c(1, length(summaryData.var$Island)),
-    ylim = c(0, max(summaryData.var[variables.summaryNames])),
+    xlab = 'Zone', ylab = 'Admixture standard deviation',
+    xlim = c(1, length(summaryData.SD$Island)),
+    ylim = c(0, max(summaryData.SD[variables.summaryNames])),
     main = paste('Sensitivity of admixture to', args$changing, 'by zone')
 )
 i = 0
 for (adm in variables.summaryNames) {
     i = i + 1
     points(
-        as.vector(unlist(summaryData.var[adm])),
+        as.vector(unlist(summaryData.SD[adm])),
         col = i, pch = i
     )
 }
@@ -131,7 +142,7 @@ legend(
     legend = variables.summaryNames,
     col = 1:i, pch = 1:i
 )
-axis(1, at = 1:length(summaryData.var$Island), labels = unique(merged$Island))
+axis(1, at = 1:length(summaryData.SD$Island), labels = summaryData.SD$Island)
 
 
 #aggregate2

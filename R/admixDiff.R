@@ -57,11 +57,14 @@ variables$comparedIslands = unlist(imports$real[!is.na(imports$real$AutosomeAdmi
 
 # checks
 if (dim(unique(imports$admix[args$changing]))[1] == 1) {
+    print(paste(args$changing, 'always has value of', imports$admix[1, args$changing]))
     stop('analysis can\'t be done if parameter doesn\'t change')
 }
-randomSeeds = imports$admix['randomSeed']
-if (dim(randomSeeds)[1] / dim(unique(imports$admix['Island']))[1] != dim(unique(randomSeeds))[1]) {
-    stop('found a repeated random seed')
+tab = table(imports$admix['randomSeed'])
+if (min(tab) != max(tab)) {
+    print('repeated randomSeeds:')
+    print(names(tab[tab == max(tab)]))
+    stop('found at least one repeated random seed')
 }
 
 # merges order and real
@@ -97,12 +100,12 @@ aggregated$mean = aggregate(
 if (is.numeric(unlist(merged[args$changing]))) {
     xlimit = c(min(merged[args$changing]), max(merged[args$changing]))
 } else {
-    c(1, length(unlist(unique(merged[args$changing]))))
+    xlimit = c(1, length(unlist(unique(merged[args$changing]))))
 }
 plot(
     NA,
     col = 1, pch = 1, xaxt = 'n',
-    xlab = args$changing, ylab = 'difference Auto XChr',
+    xlab = args$changing, ylab = 'difference XChr Auto',
     xlim = xlimit,
     ylim = c(
         min(-0.25, min(aggregated$mean$diff)),
@@ -135,26 +138,22 @@ legend(
     col = 1:length(levels(merged$Island))
 )
 
-aggregated$stderr = aggregate(
+aggregated$stddev = aggregate(
     as.formula(paste0('diff ~', args$changing, '+ Island')),
     data = merged,
-    FUN = function(x) sqrt(var(x)/ length(x))
+    FUN = sd
 )
-if (is.numeric(unlist(merged[args$changing]))) {
-    xlimit = c(min(merged[args$changing]), max(merged[args$changing]))
-} else {
-    c(1, length(unlist(unique(merged[args$changing]))))
-}
+
 plot(
     NA,
     col = 1, pch = 1, xaxt = 'n',
-    xlab = args$changing, ylab = 'standard error difference Auto XChr',
+    xlab = args$changing, ylab = 'standard error difference XChr Auto',
     xlim = xlimit,
     ylim = c(
-        min(aggregated$stderr$diff),
-        max(aggregated$stderr$diff) + (max(aggregated$stderr$diff) - min(aggregated$stderr$diff)) * 0.2
+        min(aggregated$stddev$diff),
+        max(aggregated$stddev$diff) + (max(aggregated$stddev$diff) - min(aggregated$stddev$diff)) * 0.2
     ),
-    main = paste('standard error of difference of XChr and Auto admixture depending on', args$changing)
+    main = paste('standard deviation of difference of XChr and Auto admixture depending on', args$changing)
 )
 i = 0
 for(island in levels(aggregated$stderr$Island)) {
@@ -162,7 +161,7 @@ for(island in levels(aggregated$stderr$Island)) {
 
     points(
         as.formula(paste('diff ~', args$changing)),
-        data = aggregated$stderr[aggregated$stderr$Island == island, ],
+        data = aggregated$stddev[aggregated$stddev$Island == island, ],
         col = i, pch = ceiling(i / 4) + 14, type = 'b'
     )
 }
