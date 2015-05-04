@@ -2,24 +2,26 @@
 suppressMessages(library(argparse))
 
 #variables
-variables = list()
-variables$debug = FALSE
-variables$summaryNames = c(
-    'AutosomeAdmixture', 'XChrAdmixture'
+variables = list(
+    debug = TRUE,
+    summaryNames = c(
+        'AutosomeAdmixture', 'XChrAdmixture'
+    ),
+    paramNames = c(
+        'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
+        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile',
+        'melanesianDeathRates'
+    ),
+    now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 )
-variables$paramNames = c(
-    'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-    'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile',
-    'melanesianDeathRates'
-)
-variables$now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 
 if (variables$debug) {
-    args = list()
-    args$order = ''
-    args$real = ''
-    args$changing = 'migrationProb'
-    args$admix = ''
+    args = list(
+        order = '../Data/isea_admixture_data_for_comparison_2.csv',
+        real = '../Data/isea_admixture_data_for_comparison_2.csv',
+        changing = 'poissonMean',
+        admix = '../Data/o.output_2'
+    )
 } else {
     #CLI arguments
     parser = ArgumentParser(
@@ -43,17 +45,18 @@ if (variables$debug) {
     args = parser$parse_args()
 }
 
+# checks
 if (!args$changing %in% variables$paramNames) {
+    print(paste(args$changing, 'is not in the parameter list'))
     stop('not a valid parameter')
 }
 
 # loads data
-imports = list()
-imports$admix = read.csv(args$admix)[c('Island', 'randomSeed', variables$paramNames, variables$summaryNames)]
-imports$order = read.csv(args$order)[c('Island', 'order', 'longitude', 'latitude')]
-imports$real  = read.csv(args$real)[c('Island', variables$summaryNames)]
-
-variables$comparedIslands = unlist(imports$real[!is.na(imports$real$AutosomeAdmixture),]['Island'])
+imports = list(
+    admix = read.csv(args$admix)[c('Island', 'randomSeed', variables$paramNames, variables$summaryNames)],
+    order = read.csv(args$order)[c('Island', 'order', 'longitude', 'latitude')],
+    real = read.csv(args$real)[c('Island', variables$summaryNames)]
+)
 
 # checks
 if (dim(unique(imports$admix[args$changing]))[1] == 1) {
@@ -86,7 +89,7 @@ merged$diff = merged$XChrAdmixture - merged$AutosomeAdmixture
 
 png(
     paste0('admixDiff-sensitivity-', args$changing, '-', variables$now, '.png'),
-    width = 1000, height = 1000
+    width = 900, height = 1200
 )
 par(mfrow = c(2, 1), oma = c(1, 0, 0, 0))
 
@@ -119,7 +122,7 @@ for(island in levels(aggregated$mean$Island)) {
 
     points(
         as.formula(paste('diff ~', args$changing)),
-        data = aggregated$mean[aggregated$mean$Island == island, ],
+        data = aggregated$mean[aggregated$mean$Island == island,],
         col = i, pch = ceiling(i / 4) + 14, type = 'b'
     )
 }
@@ -132,7 +135,7 @@ axis(
     )
 )
 legend(
-    "topright", ncol = 4,
+    'topright', ncol = 4,
     pch = rep(15:(14 + length(merged$Island) / 4), each = 4),
     legend = levels(merged$Island),
     col = 1:length(levels(merged$Island))
@@ -156,12 +159,13 @@ plot(
     main = paste('standard deviation of difference of XChr and Auto admixture depending on', args$changing)
 )
 i = 0
-for(island in levels(aggregated$stderr$Island)) {
+
+for(island in levels(aggregated$stddev$Island)) {
     i = i + 1
 
     points(
         as.formula(paste('diff ~', args$changing)),
-        data = aggregated$stddev[aggregated$stddev$Island == island, ],
+        data = aggregated$stddev[aggregated$stddev$Island == island,],
         col = i, pch = ceiling(i / 4) + 14, type = 'b'
     )
 }
@@ -174,7 +178,7 @@ axis(
     )
 )
 legend(
-    "topright", ncol = 4,
+    'topright', ncol = 4,
     pch = rep(15:(14 + length(merged$Island) / 4), each = 4),
     legend = levels(merged$Island),
     col = 1:length(levels(merged$Island))

@@ -1,25 +1,29 @@
 #!/usr/bin/Rscript
 suppressMessages(library(argparse))
 
-#variables
-debug = FALSE
-variables.summaryNames = c(
-    'DnaAdmixture', 'AutosomeAdmixture', 'XChrAdmixture',
-    'MitoAdmixture', 'YChrAdmixture'
+# variables
+variables = list(
+    debug = FALSE,
+    summaryNames = c(
+        'DnaAdmixture', 'AutosomeAdmixture', 'XChrAdmixture',
+        'MitoAdmixture', 'YChrAdmixture'
+    ),
+    paramNames = c(
+        'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
+        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile',
+        'melanesianDeathRates'
+    ),
+    # infoNames = c('Label', 'Island'),
+    now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 )
-variables.paramNames = c(
-    'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-    'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
-)
-variables.infoNames = c('Label', 'Island')
-variables.now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 
-if (debug) {
-    args = list()
-    args$order = ''
-    args$admix = ''
+if (variables$debug) {
+    args = list(
+        order = '',
+        admix = ''
+    )
 } else {
-    #CLI arguments
+    # CLI arguments
     parser = ArgumentParser(
         description = 'Analyse the stability of a fixed set of parameters'
     )
@@ -35,37 +39,28 @@ if (debug) {
     args = parser$parse_args()
 }
 
-#load data
-imports.order = read.csv(args$order)[c('Island', 'order')]
-imports.admix = read.csv(args$admix)
-nRuns = length(unique(imports.admix$run))
+# loads data
+imports = list(
+    order = read.csv(args$order)[c('Island', 'order')],
+    admix = read.csv(args$admix)
+)
 
-#check random seeds are unique
-randomSeeds = imports.admix['randomSeed']
-if (dim(randomSeeds)[1] / dim(unique(imports.admix['Island']))[1] != dim(unique(randomSeeds))[1]) {
-    stop('found a repeated random seed')
+# checks random seeds are unique
+tab = table(imports$admix['randomSeed'])
+if (min(tab) != max(tab)) {
+    print('repeated randomSeeds:')
+    print(names(tab[tab == max(tab)]))
+    stop('found at least one repeated random seed')
 }
 
-#adds island information
-#imports.admix['Island'] = lapply(
-#    imports.admix['Label'],
-#    function(x) sub('\\d+(_src)?', '', x)
-#)
-
-#merge imports
-#merged = merge(
-#    subset(imports.admix, select = c(variables.summaryNames, variables.infoNames, 'run')),
-#    subset(imports.param, select = c(variables.paramNames, 'run')),
-#    by = 'run'
-#)
 merged = merge(
-    imports.admix,
-    imports.order,
+    imports$admix,
+    imports$order,
     by = 'Island'
 )
 merged = merged[order(merged$order),]
 
-#aggregate
+# aggregate
 summaryData.means = aggregate(
     .~Island+run,
     data = merged,
@@ -78,47 +73,47 @@ summaryData.SD = aggregate(
     FUN = sd
 )
 summaryData.meanSD = colMeans(
-    subset(summaryData.SD, select = variables.summaryNames)
+    subset(summaryData.SD, select = variables$summaryNames)
 )
 
-#plots
+# plots
 png(
-    paste0('stability-', variables.now, '.png'),
+    paste0('stability-', variables$now, '.png'),
     width = 1300, height = 1100
 )
 par(mfrow = c(3, 2), oma = c(1, 0, 0, 0))
 boxplot(
     DnaAdmixture~factor(Island, levels = unique(merged$Island)),
     data = summaryData.means,
-    main = paste('DNA Admixture by zone for', nRuns, 'runs'),
+    main = paste('DNA Admixture by zone for', length(tab), 'runs'),
     ylab = 'DNA Admixture',
     xlab = 'Zone'
 )
 boxplot(
     AutosomeAdmixture~factor(Island, levels = unique(merged$Island)),
     data = summaryData.means,
-    main = paste('Autosome Admixture by zone for', nRuns, 'runs'),
+    main = paste('Autosome Admixture by zone for', length(tab), 'runs'),
     ylab = 'Autosome Admixture',
     xlab = 'Zone'
 )
 boxplot(
     XChrAdmixture~factor(Island, levels = unique(merged$Island)),
     data = summaryData.means,
-    main = paste('X Chromosome Admixture by zone for', nRuns, 'runs'),
+    main = paste('X Chromosome Admixture by zone for', length(tab), 'runs'),
     ylab = 'X Chromosome Admixture',
     xlab = 'Zone'
 )
 boxplot(
     MitoAdmixture~factor(Island, levels = unique(merged$Island)),
     data = summaryData.means,
-    main = paste('Mitochondrial Admixture by zone for', nRuns, 'runs'),
+    main = paste('Mitochondrial Admixture by zone for', length(tab), 'runs'),
     ylab = 'Mitochondrial Admixture',
     xlab = 'Zone'
 )
 boxplot(
     YChrAdmixture~factor(Island, levels = unique(merged$Island)),
     data = summaryData.means,
-    main = paste('Y Chromosome Admixture by zone for', nRuns, 'runs'),
+    main = paste('Y Chromosome Admixture by zone for', length(tab), 'runs'),
     ylab = 'Y Chromosome Admixture',
     xlab = 'Zone'
 )
