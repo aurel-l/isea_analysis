@@ -79,16 +79,9 @@ summaryData.meanSD = colMeans(
 # plots
 png(
     paste0('stability-', variables$now, '.png'),
-    width = 1300, height = 1100
+    width = 1100, height = 1100
 )
-par(mfrow = c(3, 2), oma = c(1, 0, 0, 0))
-boxplot(
-    DnaAdmixture~factor(Island, levels = unique(merged$Island)),
-    data = summaryData.means,
-    main = paste('DNA Admixture by zone for', length(tab), 'runs'),
-    ylab = 'DNA Admixture',
-    xlab = 'Zone'
-)
+par(mfrow = c(2, 2), oma = c(1, 0, 0, 0))
 boxplot(
     AutosomeAdmixture~factor(Island, levels = unique(merged$Island)),
     data = summaryData.means,

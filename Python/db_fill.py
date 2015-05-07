@@ -5,6 +5,7 @@ import csv
 import re
 import time
 import os
+import warnings
 import pymysql
 import pandas
 import yaml
@@ -127,6 +128,7 @@ for f in args.files:
         paramGenerator(param, date, args.version)
     )
 
+    warnings.filterwarnings('ignore', 'Data truncated*')
     cur.executemany(
         'INSERT INTO admixtureByNode ({}) values ({})'.format(
             ', '.join(var['admix']),

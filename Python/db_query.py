@@ -67,8 +67,8 @@ else:
     args.query += ' ON batch_param.date = admixtureByNode.date'
     args.query += ' AND batch_param.run = admixtureByNode.run'
 
-if not args.conditions:
-    args.conditions = '1'
+if args.conditions:
+    args.query += ' WHERE ' + args.conditions
 
 # DB access
 conn = pymysql.connect(
@@ -76,7 +76,7 @@ conn = pymysql.connect(
     db=var['db'], autocommit=False
 )
 cur = conn.cursor()
-cur.execute(args.query + ' WHERE ' + args.conditions)
+cur.execute(args.query)
 
 # connect to output
 if args.outfile:

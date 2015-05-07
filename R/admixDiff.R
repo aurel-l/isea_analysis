@@ -1,17 +1,18 @@
 #!/usr/bin/Rscript
 suppressMessages(library(argparse))
+suppressMessages(library(ggplot2))
 
 #variables
 variables = list(
-    debug = TRUE,
+    debug = FALSE,
     summaryNames = c(
         'AutosomeAdmixture', 'XChrAdmixture'
     ),
     paramNames = c(
         'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile',
-        'melanesianDeathRates'
+        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
     ),
+    discreteParams = c('startingDistributionFile', 'graphFile'),
     now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 )
 
@@ -20,7 +21,7 @@ if (variables$debug) {
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
         changing = 'poissonMean',
-        admix = '../Data/o.output_2'
+        admix = 'test4.csv'
     )
 } else {
     #CLI arguments
@@ -70,6 +71,8 @@ if (min(tab) != max(tab)) {
     stop('found at least one repeated random seed')
 }
 
+variables$numerical = !(args$changing %in% variables$discreteParams)
+
 # merges order and real
 merged = merge(
     imports$order,
@@ -87,102 +90,136 @@ merged$Island = factor(merged$Island)
 merged = merged[order(merged$order),]
 merged$diff = merged$XChrAdmixture - merged$AutosomeAdmixture
 
-png(
-    paste0('admixDiff-sensitivity-', args$changing, '-', variables$now, '.png'),
-    width = 900, height = 1200
-)
-par(mfrow = c(2, 1), oma = c(1, 0, 0, 0))
-
-aggregated = list()
-aggregated$mean = aggregate(
-    as.formula(paste0('diff ~', args$changing, '+ Island')),
+aggregated = aggregate(
+    as.formula(paste('diff ~ Island +', args$changing)),
     data = merged,
     FUN = mean
 )
-
-if (is.numeric(unlist(merged[args$changing]))) {
-    xlimit = c(min(merged[args$changing]), max(merged[args$changing]))
-} else {
-    xlimit = c(1, length(unlist(unique(merged[args$changing]))))
-}
-plot(
-    NA,
-    col = 1, pch = 1, xaxt = 'n',
-    xlab = args$changing, ylab = 'difference XChr Auto',
-    xlim = xlimit,
-    ylim = c(
-        min(-0.25, min(aggregated$mean$diff)),
-        max(0.25, max(aggregated$mean$diff) + (max(aggregated$mean$diff) - min(aggregated$mean$diff)) * 0.2)
-    ),
-    main = paste('difference of XChr and Auto admixture depending on', args$changing)
-)
-i = 0
-for(island in levels(aggregated$mean$Island)) {
-    i = i + 1
-
-    points(
-        as.formula(paste('diff ~', args$changing)),
-        data = aggregated$mean[aggregated$mean$Island == island,],
-        col = i, pch = ceiling(i / 4) + 14, type = 'b'
-    )
-}
-axis(
-    1,
-    at = unlist(unique(merged[args$changing])),
-    labels=gsub(
-        '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
-        unlist(unique(merged[args$changing]))
-    )
-)
-legend(
-    'topright', ncol = 4,
-    pch = rep(15:(14 + length(merged$Island) / 4), each = 4),
-    legend = levels(merged$Island),
-    col = 1:length(levels(merged$Island))
-)
-
 aggregated$stddev = aggregate(
-    as.formula(paste0('diff ~', args$changing, '+ Island')),
+    as.formula(paste('diff ~ Island +', args$changing)),
     data = merged,
     FUN = sd
-)
+)$diff
 
-plot(
-    NA,
-    col = 1, pch = 1, xaxt = 'n',
-    xlab = args$changing, ylab = 'standard error difference XChr Auto',
-    xlim = xlimit,
-    ylim = c(
-        min(aggregated$stddev$diff),
-        max(aggregated$stddev$diff) + (max(aggregated$stddev$diff) - min(aggregated$stddev$diff)) * 0.2
-    ),
-    main = paste('standard deviation of difference of XChr and Auto admixture depending on', args$changing)
-)
-i = 0
+# png(
+#     paste0('admixDiff-sensitivity-', args$changing, '-', variables$now, '.png'),
+#     width = 900, height = 1200
+# )
+# par(mfrow = c(2, 1), oma = c(1, 0, 0, 0))
+#
+# if (is.numeric(unlist(merged[args$changing]))) {
+#     xlimit = c(min(merged[args$changing]), max(merged[args$changing]))
+# } else {
+#     xlimit = c(1, length(unlist(unique(merged[args$changing]))))
+# }
+# plot(
+#     NA,
+#     col = 1, pch = 1, xaxt = 'n',
+#     xlab = args$changing, ylab = 'difference XChr Auto',
+#     xlim = xlimit,
+#     ylim = c(
+#         min(-0.25, min(aggregated$diff)),
+#         max(0.25, max(aggregated$diff) + (max(aggregated$diff) - min(aggregated$diff)) * 0.2)
+#     ),
+#     main = paste('difference of XChr and Auto admixture depending on', args$changing)
+# )
+# i = 0
+# for(island in levels(aggregated$Island)) {
+#     i = i + 1
+#
+#     points(
+#         as.formula(paste('diff ~', args$changing)),
+#         data = aggregated[aggregated$Island == island,],
+#         col = i, pch = ceiling(i / 4) + 14, type = 'b'
+#     )
+# }
+# axis(
+#     1,
+#     at = unlist(unique(merged[args$changing])),
+#     labels=gsub(
+#         '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
+#         unlist(unique(merged[args$changing]))
+#     )
+# )
+# legend(
+#     'topright', ncol = 4,
+#     pch = rep(15:(14 + length(merged$Island) / 4), each = 4),
+#     legend = levels(merged$Island),
+#     col = 1:length(levels(merged$Island))
+# )
+#
+# plot(
+#     NA,
+#     col = 1, pch = 1, xaxt = 'n',
+#     xlab = args$changing, ylab = 'standard deviation of difference XChr Auto',
+#     xlim = xlimit,
+#     ylim = c(
+#         min(aggregated$stddev),
+#         max(aggregated$stddev) + (max(aggregated$stddev) - min(aggregated$stddev)) * 0.2
+#     ),
+#     main = paste('standard deviation of difference of XChr and Auto admixture depending on', args$changing)
+# )
+# i = 0
+#
+# for(island in levels(aggregated$Island)) {
+#     i = i + 1
+#
+#     points(
+#         as.formula(paste('stddev ~', args$changing)),
+#         data = aggregated[aggregated$Island == island,],
+#         col = i, pch = ceiling(i / 4) + 14, type = 'b'
+#     )
+# }
+# axis(
+#     1,
+#     at = unlist(unique(merged[args$changing])),
+#     labels=gsub(
+#         '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
+#         unlist(unique(merged[args$changing]))
+#     )
+# )
+# legend(
+#     'topright', ncol = 4,
+#     pch = rep(15:(14 + length(merged$Island) / 4), each = 4),
+#     legend = levels(merged$Island),
+#     col = 1:length(levels(merged$Island))
+# )
+#
+# mtext(args$admix, side = 1, outer = TRUE)
+# graphics.off()
 
-for(island in levels(aggregated$stddev$Island)) {
-    i = i + 1
-
-    points(
-        as.formula(paste('diff ~', args$changing)),
-        data = aggregated$stddev[aggregated$stddev$Island == island,],
-        col = i, pch = ceiling(i / 4) + 14, type = 'b'
-    )
+if (variables$numerical) {
+    minInterval = min(dist(unique(aggregated[, args$changing])))
+    pd = position_dodge(0.4 * minInterval)
+    width = 1 * minInterval
+} else {
+    pd = position_dodge(0.4)
+    width = 1
 }
-axis(
-    1,
-    at = unlist(unique(merged[args$changing])),
-    labels=gsub(
-        '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
-        unlist(unique(merged[args$changing]))
-    )
-)
-legend(
-    'topright', ncol = 4,
-    pch = rep(15:(14 + length(merged$Island) / 4), each = 4),
-    legend = levels(merged$Island),
-    col = 1:length(levels(merged$Island))
-)
 
-mtext(args$admix, side = 1, outer = TRUE)
-graphics.off()
+p = ggplot(
+    aggregated,
+    aes(x = aggregated[, args$changing], y = diff, colour = Island)
+)
+p = p + geom_errorbar(
+    aes(ymin = diff - stddev, ymax = diff + stddev),
+    width = width, position = pd, alpha = 0.35
+)
+p = p + geom_point(position = pd)
+if (variables$numerical) {
+    p = p + geom_smooth(method = 'loess', se = FALSE)
+    p = p + scale_x_continuous(
+        breaks = unique(aggregated[, args$changing]),
+        name = args$changing
+    )
+} else {
+    p = p + scale_x_discrete(name = args$changing)
+}
+if (variables$debug) {
+    p
+}
+
+ggsave(
+    paste0('admixDiff-sensitivity-', args$changing, '-', variables$now, '.png'),
+    width = 11.69, height = 8.27, dpi = 150
+)
