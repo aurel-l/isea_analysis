@@ -199,13 +199,19 @@ if (variables$numerical) {
 
 p = ggplot(
     aggregated,
-    aes(x = aggregated[, args$changing], y = diff, colour = Island)
+    aes(
+        x = aggregated[, args$changing],
+        y = diff, ymax = max(diff + stddev),
+        colour = Island
+    )
 )
+p = p + theme(text = element_text(size = 25))
 p = p + geom_errorbar(
     aes(ymin = diff - stddev, ymax = diff + stddev),
     width = width, position = pd, alpha = 0.35
 )
-p = p + geom_point(position = pd)
+p = p + geom_point(aes(shape = Island), position = pd, size = 5)
+p = p + scale_shape_manual(values = rep(15:18, 4))
 if (variables$numerical) {
     p = p + geom_smooth(method = 'loess', se = FALSE)
     p = p + scale_x_continuous(
@@ -215,11 +221,10 @@ if (variables$numerical) {
 } else {
     p = p + scale_x_discrete(name = args$changing)
 }
-if (variables$debug) {
-    p
-}
 
-ggsave(
+png(
     paste0('admixDiff-sensitivity-', args$changing, '-', variables$now, '.png'),
-    width = 11.69, height = 8.27, dpi = 150
+    width = 1754, height = 1240
 )
+p
+graphics.off()

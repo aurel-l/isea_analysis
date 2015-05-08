@@ -118,7 +118,7 @@ summaryData$stddev = summaryData$stddev[order(summaryData$stddev['order']),]
 
 # plots
 
-melted = melt(summaryData$stddev[c('Island', variables$summaryNames)], id = 'Island')
+melted = melt(summaryData$stddev[, c('Island', variables$summaryNames)], id = 'Island')
 melted$Island = factor(melted$Island, unique(melted$Island))
 
 summaryData$stddev$Island = factor(summaryData$stddev$Island, levels=summaryData$stddev$Island)
@@ -126,6 +126,7 @@ p1 = ggplot(
     melted,
     aes(x = Island, y = value, colour = variable)
 )
+p1 = p1 + theme(text = element_text(size = 25))
 p1 = p1 + geom_errorbar(aes(y = value, ymin = value, ymax = value))
 p1 = p1 + scale_color_discrete(
     name = 'type of admixture',
@@ -287,6 +288,7 @@ summaryData3$XChrAdmixture$mantel = as.numeric(summaryData3$XChrAdmixture$mantel
 #     )
 # )
 p2 = ggplot(summaryData3$Auto, aes(summaryData3$Auto[, args$changing]))
+p2 = p2 + theme(text = element_text(size = 25))
 p2 = p2 + geom_bar(fill = 'white', colour = 'black', width = 0.5)
 p2 = p2 + scale_x_discrete(name = args$changing)
 p2 = p2 + scale_y_continuous(expand = c(0, 0))
@@ -297,7 +299,7 @@ if (variables$debug) {
 
 png(
     paste0('sensitivity-', args$changing, '-', variables$now, '.png'),
-    width = 1170, height = 827
+    width = 1754, height = 1240
 )
 grid.arrange(p1, p2, nrow = 2)
 graphics.off()
@@ -317,6 +319,7 @@ p3 = ggplot(
     melted2,
     aes(x = melted2[, args$changing], y = value, fill = variable)
 )
+p3 = p3 + theme(text = element_text(size = 25))
 p3 = p3 + geom_boxplot(notch = TRUE)
 p3 = p3 + scale_x_discrete(name = args$changing)
 p3 = p3 + scale_y_continuous(limits = c(0, 1))
@@ -337,6 +340,7 @@ p4 = ggplot(
     summaryData3$melted,
     aes(x = summaryData3$melted[, args$changing], y = mantel, fill = variable)
 )
+p4 = p4 + theme(text = element_text(size = 25))
 p4 = p4 + geom_boxplot(notch = TRUE)
 p4 = p4 + scale_x_discrete(name = args$changing)
 p4 = p4 + scale_y_continuous(limits = c(-1, 1))
@@ -347,7 +351,7 @@ if (variables$debug) {
 
 png(
     paste0('comparisons-', args$changing, '-', variables$now, '.png'),
-    width = 1170, height = 827
+    width = 1754, height = 1240
 )
 grid.arrange(p3, p4, nrow = 2)
 

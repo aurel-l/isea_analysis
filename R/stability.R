@@ -1,17 +1,19 @@
 #!/usr/bin/Rscript
 suppressMessages(library(argparse))
+suppressMessages(library(reshape2))
+suppressMessages(library(ggplot2))
 
 # variables
 variables = list(
     debug = FALSE,
     summaryNames = c(
-        'DnaAdmixture', 'AutosomeAdmixture', 'XChrAdmixture',
-        'MitoAdmixture', 'YChrAdmixture'
+        #'DnaAdmixture',
+        'MitoAdmixture', 'XChrAdmixture',
+        'AutosomeAdmixture', 'YChrAdmixture'
     ),
     paramNames = c(
         'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile',
-        'melanesianDeathRates'
+        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
     ),
     # infoNames = c('Label', 'Island'),
     now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
@@ -19,8 +21,8 @@ variables = list(
 
 if (variables$debug) {
     args = list(
-        order = '',
-        admix = ''
+        order = '../Data/isea_admixture_data_for_comparison_2.csv',
+        admix = 'test5.csv'
     )
 } else {
     # CLI arguments
@@ -59,6 +61,7 @@ merged = merge(
     by = 'Island'
 )
 merged = merged[order(merged$order),]
+merged$Island = factor(merged$Island, unique(merged$Island))
 
 # aggregate
 summaryData.means = aggregate(
@@ -67,48 +70,102 @@ summaryData.means = aggregate(
     FUN = mean
 )
 
-summaryData.SD = aggregate(
-    .~Island,
-    data = summaryData.means,
-    FUN = sd
-)
-summaryData.meanSD = colMeans(
-    subset(summaryData.SD, select = variables$summaryNames)
-)
+# summaryData.SD = aggregate(
+#     .~Island,
+#     data = summaryData.means,
+#     FUN = sd
+# )
+# summaryData.meanSD = colMeans(
+#     subset(summaryData.SD, select = variables$summaryNames)
+# )
 
 # plots
+melted = melt(
+    summaryData.means[, c('Island', variables$summaryNames)],
+    id = 'Island'
+)
+
+p1 = ggplot(
+    melted,
+    aes(x = Island, y = value, colour = variable)
+)
+p1 = p1 + theme(text = element_text(size = 25))
+p1 = p1 + geom_boxplot(notch = TRUE)
+p1 = p1 + facet_wrap(~ variable, ncol = 2)
+p1 = p1 + scale_y_continuous(name = 'admixture', limits = c(0, 1))
+p1 = p1 + guides(colour = FALSE)
+p1 = p1 + ggtitle(paste('Admixture by zone for', length(tab), 'runs'))
+
 png(
     paste0('stability-', variables$now, '.png'),
-    width = 1100, height = 1100
+    width = 1754, height = 1240
 )
-par(mfrow = c(2, 2), oma = c(1, 0, 0, 0))
-boxplot(
-    AutosomeAdmixture~factor(Island, levels = unique(merged$Island)),
-    data = summaryData.means,
-    main = paste('Autosome Admixture by zone for', length(tab), 'runs'),
-    ylab = 'Autosome Admixture',
-    xlab = 'Zone'
-)
-boxplot(
-    XChrAdmixture~factor(Island, levels = unique(merged$Island)),
-    data = summaryData.means,
-    main = paste('X Chromosome Admixture by zone for', length(tab), 'runs'),
-    ylab = 'X Chromosome Admixture',
-    xlab = 'Zone'
-)
-boxplot(
-    MitoAdmixture~factor(Island, levels = unique(merged$Island)),
-    data = summaryData.means,
-    main = paste('Mitochondrial Admixture by zone for', length(tab), 'runs'),
-    ylab = 'Mitochondrial Admixture',
-    xlab = 'Zone'
-)
-boxplot(
-    YChrAdmixture~factor(Island, levels = unique(merged$Island)),
-    data = summaryData.means,
-    main = paste('Y Chromosome Admixture by zone for', length(tab), 'runs'),
-    ylab = 'Y Chromosome Admixture',
-    xlab = 'Zone'
-)
-mtext(args$admix, side = 1, outer = TRUE)
+p1
 graphics.off()
+
+aggregated = aggregate(
+    . ~ Island + variable,
+    data = melted,
+    FUN = mean
+)
+aggregated$stddev = aggregate(
+    . ~ Island + variable,
+    data = melted,
+    FUN = sd
+)$value
+
+pd = position_dodge(0.2)
+p2 = ggplot(
+    aggregated,
+    aes(x = variable, y = value, ymax = 1.0, colour = Island)
+)
+p2 = p2 + theme(text = element_text(size = 25))
+p2 = p2 + geom_point(aes(shape = Island), position = pd, size = 5)
+p2 = p2 + scale_shape_manual(values = c(rep(15:18, 4), 15:17))
+p2 = p2 + geom_errorbar(
+    aes(ymin = value - stddev, ymax = value + stddev),
+    position = pd, alpha = 0.35
+)
+p2 = p2 + geom_line(aes(group = Island), alpha = 0.35)
+p2 = p2 + scale_x_discrete(name = 'admixture type')
+p2 = p2 + scale_y_continuous(name = 'admixture value', breaks = seq(0, 1, by = 0.1))
+p2 = p2 + ggtitle(paste('Admixture by type for', length(tab), 'runs'))
+
+png(
+    paste0('stability-admixGradient-', variables$now, '.png'),
+    width = 1754, height = 1240
+)
+p2
+graphics.off()
+
+# par(mfrow = c(2, 2), oma = c(1, 0, 0, 0))
+# boxplot(
+#     AutosomeAdmixture~factor(Island, levels = unique(merged$Island)),
+#     data = summaryData.means,
+#     main = paste('Autosome Admixture by zone for', length(tab), 'runs'),
+#     ylab = 'Autosome Admixture',
+#     xlab = 'Zone'
+# )
+# boxplot(
+#     XChrAdmixture~factor(Island, levels = unique(merged$Island)),
+#     data = summaryData.means,
+#     main = paste('X Chromosome Admixture by zone for', length(tab), 'runs'),
+#     ylab = 'X Chromosome Admixture',
+#     xlab = 'Zone'
+# )
+# boxplot(
+#     MitoAdmixture~factor(Island, levels = unique(merged$Island)),
+#     data = summaryData.means,
+#     main = paste('Mitochondrial Admixture by zone for', length(tab), 'runs'),
+#     ylab = 'Mitochondrial Admixture',
+#     xlab = 'Zone'
+# )
+# boxplot(
+#     YChrAdmixture~factor(Island, levels = unique(merged$Island)),
+#     data = summaryData.means,
+#     main = paste('Y Chromosome Admixture by zone for', length(tab), 'runs'),
+#     ylab = 'Y Chromosome Admixture',
+#     xlab = 'Zone'
+# )
+# mtext(args$admix, side = 1, outer = TRUE)
+# graphics.off()
