@@ -1,19 +1,15 @@
 #!/usr/bin/Rscript
-suppressMessages(library(argparse))
-suppressMessages(library(ggplot2))
 
-#variables
-variables = list(
-    debug = FALSE,
-    summaryNames = c(
-        'AutosomeAdmixture', 'XChrAdmixture'
-    ),
-    paramNames = c(
-        'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
-    ),
-    discreteParams = c('startingDistributionFile', 'graphFile'),
-    now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
+# source script that is common to all scripts
+source(paste0(
+    dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+    '/common.R'
+))
+
+# variables overwrite
+#variables$debug = TRUE
+variables$summaryNames = c(
+    'AutosomeAdmixture', 'XChrAdmixture'
 )
 
 if (variables$debug) {
@@ -89,6 +85,9 @@ merged = merge(
 merged$Island = factor(merged$Island)
 merged = merged[order(merged$order),]
 merged$diff = merged$XChrAdmixture - merged$AutosomeAdmixture
+
+# creates parameter info file
+toXMLFile(merged)
 
 aggregated = aggregate(
     as.formula(paste('diff ~ Island +', args$changing)),
@@ -219,11 +218,24 @@ if (variables$numerical) {
         name = args$changing
     )
 } else {
-    p = p + scale_x_discrete(name = args$changing)
+    p = p + scale_x_discrete(
+        name = args$changing,
+        labels=gsub(
+            '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
+            unlist(unique(merged[args$changing]))
+        )
+    )
 }
+p = p + scale_y_continuous(
+    name = 'XChr - Autosomal admixture',
+    limits = c(0, 1), breaks = seq(0, 1, by = 0.1)
+)
+p = p + ggtitle(
+    paste('Difference of admixture between XChr and Autosome in relation to changes in', args$changing)
+)
 
 png(
-    paste0('admixDiff-sensitivity-', args$changing, '-', variables$now, '.png'),
+    paste0(variables$now, '-admixDiff-sensitivity-', args$changing, '.png'),
     width = 1754, height = 1240
 )
 p

@@ -1,27 +1,18 @@
 #!/usr/bin/Rscript
-suppressMessages(library(argparse))
 suppressMessages(library(lattice))
 suppressMessages(library(vegan))
 suppressMessages(library(SpatialTools))
 suppressMessages(library(reshape2))
 suppressMessages(library(gridExtra))
-suppressMessages(library(ggplot2))
 
-#variables
-variables = list(
-    debug = FALSE,
-    summaryNames = c(
-        'DnaAdmixture', 'AutosomeAdmixture', 'XChrAdmixture',
-        'MitoAdmixture', 'YChrAdmixture'
-    ),
-    paramNames = c(
-        'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
-    ),
-    discreteParams = c('startingDistributionFile', 'graphFile'),
-    now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S'),
-    permutations = 99
-)
+# source script that is common to all scripts
+source(paste0(
+    dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+    '/common.R'
+))
+
+# variables overwrite
+#variables$debug = TRUE
 
 if (variables$debug) {
     args = list(
@@ -94,6 +85,8 @@ merged = merge(
 merged = merged[order(merged$order),]
 merged$Island = factor(merged$Island)
 
+toXMLFile(merged)
+
 # aggregates
 summaryData = list()
 summaryData$means = aggregate(
@@ -126,13 +119,13 @@ p1 = ggplot(
     melted,
     aes(x = Island, y = value, colour = variable)
 )
-p1 = p1 + theme(text = element_text(size = 25))
+p1 = p1 + theme(text = element_text(size = 30))
 p1 = p1 + geom_errorbar(aes(y = value, ymin = value, ymax = value))
 p1 = p1 + scale_color_discrete(
     name = 'type of admixture',
     labels = c(
-        'Whole DNA (52 markers)', 'Autosomal (25 markers)', 'X Chromosomal (25 markers)',
-        'Mitochondrial (1 marker)', 'Y Chromosomal (1 marker)'
+        'Whole DNA (52m)', 'Autosomal (25m)', 'X Chromosomal (25m)',
+        'Mitochondrial (1m)', 'Y Chromosomal (1m)'
     )
 )
 p1 = p1 + scale_y_continuous(name = 'standard deviation of admixture')
@@ -288,17 +281,17 @@ summaryData3$XChrAdmixture$mantel = as.numeric(summaryData3$XChrAdmixture$mantel
 #     )
 # )
 p2 = ggplot(summaryData3$Auto, aes(summaryData3$Auto[, args$changing]))
-p2 = p2 + theme(text = element_text(size = 25))
+p2 = p2 + theme(text = element_text(size = 30))
 p2 = p2 + geom_bar(fill = 'white', colour = 'black', width = 0.5)
 p2 = p2 + scale_x_discrete(name = args$changing)
-p2 = p2 + scale_y_continuous(expand = c(0, 0))
+p2 = p2 + scale_y_continuous(name = 'simulation count', expand = c(0, 0))
 p2 = p2 + ggtitle(paste('Count of simulations for every different', args$changing))
 if (variables$debug) {
     p2
 }
 
 png(
-    paste0('sensitivity-', args$changing, '-', variables$now, '.png'),
+    paste0(variables$now, '-sensitivity-', args$changing, '.png'),
     width = 1754, height = 1240
 )
 grid.arrange(p1, p2, nrow = 2)
@@ -322,7 +315,7 @@ p3 = ggplot(
 p3 = p3 + theme(text = element_text(size = 25))
 p3 = p3 + geom_boxplot(notch = TRUE)
 p3 = p3 + scale_x_discrete(name = args$changing)
-p3 = p3 + scale_y_continuous(limits = c(0, 1))
+p3 = p3 + scale_y_continuous(name = 'MSD', limits = c(0, 1), breaks = seq(0, 1, by = 0.1))
 p3 = p3 + ggtitle(paste('Mean of squared distances of admixtures in relation to', args$changing))
 if (variables$debug) {
     p3
@@ -343,14 +336,14 @@ p4 = ggplot(
 p4 = p4 + theme(text = element_text(size = 25))
 p4 = p4 + geom_boxplot(notch = TRUE)
 p4 = p4 + scale_x_discrete(name = args$changing)
-p4 = p4 + scale_y_continuous(limits = c(-1, 1))
-p4 = p4 + ggtitle(paste('Mean of squared distances of admixtures in relation to', args$changing))
+p4 = p4 + scale_y_continuous(name = 'correlation value', limits = c(-1, 1), breaks = seq(-1, 1, by = 0.1))
+p4 = p4 + ggtitle(paste('Partial Mantel correlation test in relation to', args$changing))
 if (variables$debug) {
     p4
 }
 
 png(
-    paste0('comparisons-', args$changing, '-', variables$now, '.png'),
+    paste0(variables$now, '-comparisons-', args$changing, '.png'),
     width = 1754, height = 1240
 )
 grid.arrange(p3, p4, nrow = 2)

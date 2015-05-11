@@ -1,22 +1,17 @@
 #!/usr/bin/Rscript
-suppressMessages(library(argparse))
 suppressMessages(library(reshape2))
-suppressMessages(library(ggplot2))
 
-# variables
-variables = list(
-    debug = FALSE,
-    summaryNames = c(
-        #'DnaAdmixture',
-        'MitoAdmixture', 'XChrAdmixture',
-        'AutosomeAdmixture', 'YChrAdmixture'
-    ),
-    paramNames = c(
-        'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-        'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
-    ),
-    # infoNames = c('Label', 'Island'),
-    now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
+# source script that is common to all scripts
+source(paste0(
+    dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+    '/common.R'
+))
+
+# variables overwrite
+#variables$debug = TRUE
+variables$summaryNames = c(
+    'MitoAdmixture', 'XChrAdmixture',
+    'AutosomeAdmixture', 'YChrAdmixture'
 )
 
 if (variables$debug) {
@@ -62,6 +57,9 @@ merged = merge(
 )
 merged = merged[order(merged$order),]
 merged$Island = factor(merged$Island, unique(merged$Island))
+
+# creates parameter info file
+toXMLFile(merged)
 
 # aggregate
 summaryData.means = aggregate(
@@ -132,7 +130,7 @@ p2 = p2 + scale_y_continuous(name = 'admixture value', breaks = seq(0, 1, by = 0
 p2 = p2 + ggtitle(paste('Admixture by type for', length(tab), 'runs'))
 
 png(
-    paste0('stability-admixGradient-', variables$now, '.png'),
+    paste0(variables$now, '-stability-admixGradient.png'),
     width = 1754, height = 1240
 )
 p2
