@@ -84,13 +84,17 @@ if args.outfile:
 else:
     output = sys.stdout
 
-# write to csv
-output.write(','.join(h.rsplit('.', 1)[-1] for h in var['defaults']))
-output.write('\n')
-for row in cur:
-    output.write(','.join(str(cell) for cell in row))
+try:
+    # write to csv
+    output.write(','.join(h.rsplit('.', 1)[-1] for h in var['defaults']))
     output.write('\n')
-
-cur.close()
-conn.commit()
-conn.close()
+    for row in cur:
+        output.write(','.join(str(cell) for cell in row))
+        output.write('\n')
+except BrokenPipeError:
+    # catch broken pipe (e.g. when using 'head' command)
+    output.close()
+finally:
+    cur.close()
+    conn.commit()
+    conn.close()
