@@ -8,6 +8,7 @@ source(paste0(
 
 # variables overwrite
 #variables$debug = TRUE
+#variables$paramNames = c('asianDefinition', variables$paramNames)
 variables$summaryNames = c(
     'AutosomeAdmixture', 'XChrAdmixture'
 )
@@ -204,7 +205,7 @@ p = ggplot(
         colour = Island
     )
 )
-p = p + theme(text = element_text(size = 25))
+p = p + theme(text = element_text(size = variables$textSize))
 p = p + geom_errorbar(
     aes(ymin = diff - stddev, ymax = diff + stddev),
     width = width, position = pd, alpha = 0.35
@@ -212,7 +213,8 @@ p = p + geom_errorbar(
 p = p + geom_point(aes(shape = Island), position = pd, size = 5)
 p = p + scale_shape_manual(values = rep(15:18, 4))
 if (variables$numerical) {
-    p = p + geom_smooth(method = 'loess', se = FALSE)
+    #p = p + geom_smooth(method = 'loess', se = FALSE)
+    p = p + geom_line()
     p = p + scale_x_continuous(
         breaks = unique(aggregated[, args$changing]),
         name = args$changing
@@ -228,7 +230,11 @@ if (variables$numerical) {
 }
 p = p + scale_y_continuous(
     name = 'XChr - Autosomal admixture',
-    limits = c(0, 1), breaks = seq(0, 1, by = 0.1)
+    limits = c(
+        min(-0.2, min(aggregated$diff - aggregated$stddev)),
+        max(0.2, max(aggregated$diff + aggregated$stddev))
+    ),
+    breaks = seq(0, 1, by = 0.1)
 )
 p = p + ggtitle(
     paste('Difference of admixture between XChr and Autosome in relation to changes in', args$changing)
