@@ -2,17 +2,22 @@
 suppressMessages(library(lattice))
 suppressMessages(library(vegan))
 suppressMessages(library(SpatialTools))
-suppressMessages(library(reshape2))
-suppressMessages(library(gridExtra))
 
 # source script that is common to all scripts
-source(paste0(
-    dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
-    '/common.R'
-))
+tryCatch({
+    # look for common.R in the same folder than the script
+    source(paste0(
+        dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+        '/common.R'
+    ))
+}, warning = function(a) {
+    # when not run from CLI, assumes common.R is in the working directory
+    source('common.R')
+})
 
 # variables overwrite
 #variables$debug = TRUE
+#variables$paramNames = c('asianDefinition', variables$paramNames)
 
 if (variables$debug) {
     args = list(
@@ -52,7 +57,7 @@ if (!args$changing %in% variables$paramNames) {
     stop('not a valid parameter')
 }
 
-#load data
+# load data
 imports = list(
     admix = read.csv(args$admix),
     order = read.csv(args$order)[c('Island', 'order', 'longitude', 'latitude')],
@@ -281,8 +286,7 @@ summaryData3$XChrAdmixture$mantel = as.numeric(summaryData3$XChrAdmixture$mantel
 #     )
 # )
 p2 = ggplot(summaryData3$Auto, aes(summaryData3$Auto[, args$changing]))
-p2 = p2 + theme(text = element_text(size = 30))
-p2 = p2 + geom_bar(fill = 'white', colour = 'black', width = 0.5)
+p2 = p2 + theme(text = element_text(size = variables$textSize))
 p2 = p2 + scale_x_discrete(name = args$changing)
 p2 = p2 + scale_y_continuous(name = 'simulation count', expand = c(0, 0))
 p2 = p2 + ggtitle(paste('Count of simulations for every different', args$changing))

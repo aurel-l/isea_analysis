@@ -1,10 +1,16 @@
 #!/usr/bin/Rscript
 
 # source script that is common to all scripts
-source(paste0(
-    dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
-    '/common.R'
-))
+tryCatch({
+    # look for common.R in the same folder than the script
+    source(paste0(
+        dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+        '/common.R'
+    ))
+}, warning = function(a) {
+    # when not run from CLI, assumes common.R is in the working directory
+    source('common.R')
+})
 
 # variables overwrite
 #variables$debug = TRUE
@@ -234,7 +240,7 @@ p = p + scale_y_continuous(
         min(-0.2, min(aggregated$diff - aggregated$stddev)),
         max(0.2, max(aggregated$diff + aggregated$stddev))
     ),
-    breaks = seq(0, 1, by = 0.1)
+    breaks = seq(-1, 1, by = 0.1)
 )
 p = p + ggtitle(
     paste('Difference of admixture between XChr and Autosome in relation to changes in', args$changing)

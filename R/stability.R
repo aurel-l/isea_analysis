@@ -2,10 +2,16 @@
 suppressMessages(library(reshape2))
 
 # source script that is common to all scripts
-source(paste0(
-    dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
-    '/common.R'
-))
+tryCatch({
+    # look for common.R in the same folder than the script
+    source(paste0(
+        dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+        '/common.R'
+    ))
+}, warning = function(a) {
+    # when not run from CLI, assumes common.R is in the working directory
+    source('common.R')
+})
 
 # variables overwrite
 #variables$debug = TRUE
