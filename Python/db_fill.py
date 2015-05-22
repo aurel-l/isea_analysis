@@ -7,8 +7,9 @@ import time
 import os
 import warnings
 import pymysql
-import pandas
 import yaml
+import subprocess
+
 
 # load config file
 try:
@@ -42,35 +43,38 @@ var = {
 
 
 def paramGenerator(param, date, version):
+    unique_keys = set()
     for p in param:
-        yield (
-            p['run'],
-            date,
-            p['migrationProb'],
-            p['startingDistributionFile'].rsplit('/', 1)[-1],
-            version,
-            p['randomSeed'],
-            p['poissonMean'],
-            p['initialDemeAgentNumber'],
-            p['graphFile'].rsplit('/', 1)[-1],
-            p['growthRate'],
-            p['marriageThres']
-        )
-
-
-def admixGenerator(admix, date, exclude_runs = set()):
-    for (run, island), a in admix.iterrows():
-        if not run in exclude_runs:
+        key = (p['run'], date)
+        if (key not in unique_keys):
+            unique_keys.add(key)
             yield (
-                run,
+                p['run'],
                 date,
-                island,
-                str(a['DnaAdmixture']),
-                str(a['AutosomeAdmixture']),
-                str(a['XChrAdmixture']),
-                str(a['YChrAdmixture']),
-                str(a['MitoAdmixture'])
+                p['migrationProb'],
+                p['startingDistributionFile'].rsplit('/', 1)[-1],
+                version,
+                p['randomSeed'],
+                p['poissonMean'],
+                p['initialDemeAgentNumber'],
+                p['graphFile'].rsplit('/', 1)[-1],
+                p['growthRate'],
+                p['marriageThres']
             )
+
+
+def admixGenerator(admix, date):
+    for a in admix:
+        yield (
+            a['run'],
+            date,
+            a['Island'],
+            a['DnaAdmixture'],
+            a['AutosomeAdmixture'],
+            a['XChrAdmixture'],
+            a['YChrAdmixture'],
+            a['MitoAdmixture']
+        )
 
 # parse arguments
 parser = argparse.ArgumentParser(description='fills the DB')
@@ -84,6 +88,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+
 # DB access
 conn = pymysql.connect(
     host=var['host'], port=var['port'], user=var['user'], passwd=var['passwd'],
@@ -91,28 +96,18 @@ conn = pymysql.connect(
 )
 
 for f in args.files:
-    cur = conn.cursor()
-
-    # read files
-    param = csv.DictReader(open(f.replace('.txt', '.batch_param_map.txt')))
-    admix = pandas.read_csv(f)
-
-    # extract Island information
-    admix['Island'] = pandas.Series(
-        [x[0:4] for x in admix['Label']],
-        index=admix.index
+    # change path if path is not absolute
+    if (not f.startswith('/')):
+        f = '../R/{}'.format(f)
+    # execute merge.R
+    sp = subprocess.Popen(
+        '../R/merge.R {}'.format(f),
+        stdout=subprocess.PIPE,
+        shell=True
     )
 
-    exclude_runs = set()
-    for obs in [
-        'DnaAdmixture', 'AutosomeAdmixture', 'XChrAdmixture',
-        'YChrAdmixture', 'MitoAdmixture'
-    ]:
-        exclude_runs = exclude_runs.union(
-            set(
-                admix[pandas.isnull(admix[obs])]['run']
-            )
-        )
+    # read pipe
+    csv_text = sp.stdout.read().decode("utf-8")
 
     # extract date
     date = time.strptime(
@@ -120,12 +115,18 @@ for f in args.files:
         "%Y.%b.%d.%H_%M_%S"
     )
 
+    cur = conn.cursor()
+
     cur.executemany(
         'INSERT INTO batch_param ({}) values ({})'.format(
             ', '.join(var['param']),
             ', '.join('%s' for _ in var['param'])
         ),
-        paramGenerator(param, date, args.version)
+        paramGenerator(
+            csv.DictReader(csv_text.splitlines()),
+            date,
+            args.version
+        )
     )
 
     warnings.filterwarnings('ignore', 'Data truncated*')
@@ -134,11 +135,7 @@ for f in args.files:
             ', '.join(var['admix']),
             ', '.join('%s' for _ in var['admix'])
         ),
-        admixGenerator(
-            admix.groupby(['run', 'Island']).mean(),
-            date,
-            exclude_runs
-        )
+        admixGenerator(csv.DictReader(csv_text.splitlines()), date)
     )
 
     cur.close()
