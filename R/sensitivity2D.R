@@ -22,7 +22,7 @@ if (variables$debug) {
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
-        admix = '../test/test150518-sub.csv'
+        admix = '../test/test-poisson-marriage.csv'
     )
     # makes debug tests faster
     variables$permutations = 1

@@ -5,6 +5,8 @@ suppressMessages(library(argparse))
 suppressMessages(library(ggplot2))
 suppressMessages(library(gridExtra))
 suppressMessages(library(matrixStats))
+suppressMessages(library(parallel))
+#suppressMessages(library(Rcpp))
 suppressMessages(library(reshape2))
 suppressMessages(library(XML))
 
@@ -28,10 +30,13 @@ variables = list(
         'startingDistributionFile', 'graphFile'
     ),
     now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S'),
+    cores = detectCores(),
+    nDemes = 118L,
+    nIslands = 21L,
     toleratedPopRatio = 0.1,
     toleratedDeadDemes = 0.25,
-    permutations = 99,
-    textSize = 30
+    permutations = 99L,
+    textSize = 30L
 )
 variables$paramNames = c(variables$continuousParams, variables$discreteParams)
 
@@ -89,7 +94,7 @@ toXMLFile = function(df, debug) {
 }
 
 # cleans the vector of names of useless information
-clean = function(names) {
+clean = compiler::cmpfun(function(names) {
     out = gsub(
         '(.*/)|(starting_distribution_)|(death_rates_)|(\\.csv)', '',
         names
@@ -99,7 +104,7 @@ clean = function(names) {
         out
     )
     return(out)
-}
+})
 
 counts = function(df, changing) {
     countFrame = aggregate(
@@ -202,10 +207,10 @@ stability = function(df, changing) {
     return(p)
 }
 
-append = function(l, item) {
-    l[[length(l) + 1]] = item
-    return(l)
-}
+# append = compiler::cmpfun(function(l, item) {
+#     l[[length(l) + 1]] = item
+#     return(l)
+# })
 
 sensitivity = function(df, changing) {
     melted = list(
@@ -339,3 +344,72 @@ sensitivity = function(df, changing) {
         return(list(p1, p3, p2, p4, nrow = 4))
     }
 }
+
+demesToIslands = compiler::cmpfun(function(df, summaryNames, islands) {
+    output = data.frame(
+        run = df$run[1],
+        Island = islands
+    )
+    output[, summaryNames] = 0.0
+    for (i in islands) {
+        s = df[df$Island == i, ]
+        output[output$Island == i, summaryNames] = colWeightedMeans(
+            s[, summaryNames],
+            s$DemeSize,
+            na.rm = TRUE
+        )
+    }
+    return(output)
+})
+
+successfulRuns = compiler::cmpfun(function(df, popRatio, deadDemes, debug) {
+    uniqueIslands = unique(df$Island)
+    failedRuns = c()
+    for (r in unique(df$run)) {
+        simu = df[df$run == r, ]
+        max = max(simu$DemeSize)
+        for (i in uniqueIslands) {
+            empty = simu[simu$Island == i, 'DemeSize'] < popRatio
+            # if too many empty (or nearly empty) demes on an island
+            if (length(empty) * deadDemes <= sum(empty)) {
+                failedRuns = c(failedRuns, r)
+                break
+            }
+        }
+    }
+
+    # removes failed runs
+    if (debug) {
+        cat(paste('removing', length(failedRuns), 'failed simulations\n'))
+    }
+
+    return(df[!df$run %in% failedRuns, ])
+})
+
+hasFailedWithDemeInfo = compiler::cmpfun(
+    function(df, popRatio, deadDemes, islands, summaryNames) {
+        max = max(df$DemeSize)
+        for (i in islands) {
+            empty = df[df$Island == i, 'DemeSize'] < popRatio
+            # if too many empty (or nearly empty) demes on an island
+            if(length(empty) * deadDemes <= sum(empty)) {
+                return(TRUE)
+            }
+        }
+        return(FALSE)
+    }
+)
+
+hasFailedWithoutDemeInfo = compiler::cmpfun(
+    function(df, popRatio, deadDemes, islands, summaryNames) {
+        for (i in islands) {
+            islandDF = df[df$Island == i, ]
+            # if too many NaN values in demes on an island
+            if(sum(floor(colMeans(is.na(islandDF[, summaryNames])))) > 0) {
+            #if(is.na(sum(apply(islandDF[, summaryNames], 2, sum)))) {
+                return(TRUE)
+            }
+        }
+        return(FALSE)
+    }
+)

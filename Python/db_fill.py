@@ -38,42 +38,51 @@ var = {
     'admix': [
         'run', 'date', 'Island', 'DnaAdmixture', 'AutosomeAdmixture',
         'XChrAdmixture', 'YChrAdmixture', 'MitoAdmixture'
-    ]
+    ],
+    'sep': re.compile('"?,"?')
+}
+var['sql'] = {
+    'param': 'INSERT INTO batch_param ({}) values ({})'.format(
+        ', '.join(var['param']),
+        ', '.join('%s' for _ in var['param'])
+    ),
+    'admix': 'INSERT INTO admixtureByNode ({}) values ({})'.format(
+        ', '.join(var['admix']),
+        ', '.join('%s' for _ in var['admix'])
+    )
 }
 
 
-def paramGenerator(param, date, version):
-    unique_keys = set()
-    for p in param:
-        key = (p['run'], date)
-        if (key not in unique_keys):
-            unique_keys.add(key)
-            yield (
-                p['run'],
-                date,
-                p['migrationProb'],
-                p['startingDistributionFile'].rsplit('/', 1)[-1],
-                version,
-                p['randomSeed'],
-                p['poissonMean'],
-                p['initialDemeAgentNumber'],
-                p['graphFile'].rsplit('/', 1)[-1],
-                p['growthRate'],
-                p['marriageThres']
-            )
-
-
-def admixGenerator(admix, date):
-    for a in admix:
-        yield (
-            a['run'],
+def param_generator(indices, date, version):
+    row = yield
+    while True:
+        row = yield (
+            row[indices['run']],
             date,
-            a['Island'],
-            a['DnaAdmixture'],
-            a['AutosomeAdmixture'],
-            a['XChrAdmixture'],
-            a['YChrAdmixture'],
-            a['MitoAdmixture']
+            row[indices['migrationProb']],
+            row[indices['startingDistributionFile']].rsplit('/', 1)[-1],
+            version,
+            row[indices['randomSeed']],
+            row[indices['poissonMean']],
+            row[indices['initialDemeAgentNumber']],
+            row[indices['graphFile']].rsplit('/', 1)[-1],
+            row[indices['growthRate']],
+            row[indices['marriageThres']]
+        )
+
+
+def admix_generator(indices, date):
+    row = yield
+    while True:
+        row = yield (
+            row[indices['run']],
+            date,
+            row[indices['Island']],
+            row[indices['DnaAdmixture']],
+            row[indices['AutosomeAdmixture']],
+            row[indices['XChrAdmixture']],
+            row[indices['YChrAdmixture']],
+            row[indices['MitoAdmixture']]
         )
 
 # parse arguments
@@ -88,26 +97,15 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-
-# DB access
-conn = pymysql.connect(
-    host=var['host'], port=var['port'], user=var['user'], passwd=var['passwd'],
-    db=var['db'], autocommit=False
-)
-
 for f in args.files:
-    # change path if path is not absolute
-    if (not f.startswith('/')):
-        f = '../R/{}'.format(f)
-    # execute merge.R
-    sp = subprocess.Popen(
-        '../R/merge.R {}'.format(f),
-        stdout=subprocess.PIPE,
-        shell=True
-    )
+    print('processing {}...'.format(f))
 
-    # read pipe
-    csv_text = sp.stdout.read().decode("utf-8")
+    # DB access
+    conn = pymysql.connect(
+        host=var['host'], port=var['port'], user=var['user'],
+        passwd=var['passwd'], db=var['db'], autocommit=False
+    )
+    warnings.filterwarnings('ignore', 'Data truncated*')
 
     # extract date
     date = time.strptime(
@@ -115,30 +113,49 @@ for f in args.files:
         "%Y.%b.%d.%H_%M_%S"
     )
 
+    # change path if path is not absolute
+    if (not f.startswith('/')):
+        f = '../R/{}'.format(f)
+    # execute merge.R
+    sp = subprocess.Popen(
+        '../R/merge.R -p -f {}'.format(f),
+        stdout=subprocess.PIPE,
+        shell=True
+    )
+
+    indices = {
+        col: i for (i, col) in
+        enumerate(re.findall('\w+', next(sp.stdout).decode('utf-8')))
+    }
+
+    param_g = param_generator(indices, date, args.version)
+    next(param_g)
+    admix_g = admix_generator(indices, date)
+    next(admix_g)
+
     cur = conn.cursor()
 
-    cur.executemany(
-        'INSERT INTO batch_param ({}) values ({})'.format(
-            ', '.join(var['param']),
-            ', '.join('%s' for _ in var['param'])
-        ),
-        paramGenerator(
-            csv.DictReader(csv_text.splitlines()),
-            date,
-            args.version
-        )
-    )
+    loop = 0
+    line = next(sp.stdout).decode('utf-8')
+    while line:
+        row = re.split(var['sep'], line.split('\n')[0])
 
-    warnings.filterwarnings('ignore', 'Data truncated*')
-    cur.executemany(
-        'INSERT INTO admixtureByNode ({}) values ({})'.format(
-            ', '.join(var['admix']),
-            ', '.join('%s' for _ in var['admix'])
-        ),
-        admixGenerator(csv.DictReader(csv_text.splitlines()), date)
-    )
+        if (loop % 21 == 0):
+            # once for every simulation, store param values
+            cur.execute(var['sql']['param'], param_g.send(row))
+
+        cur.execute(var['sql']['admix'], admix_g.send(row))
+
+        try:
+            line = next(sp.stdout).decode('utf-8')
+        except StopIteration:
+            line = ''
+        loop += 1
 
     cur.close()
-    conn.commit()
-
-conn.close()
+    user_input = input(
+        'Are you sure you want to store these simulations in the DB [Y/n] '
+    )
+    if (user_input.lower() in ['', 'y', 'yes', 'sure', 'oui', 'yep', 'yeah']):
+        conn.commit()
+    conn.close()
