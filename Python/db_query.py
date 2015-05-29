@@ -70,10 +70,12 @@ else:
 if args.conditions:
     args.query += ' WHERE ' + args.conditions
 
+args.query += ' ORDER BY batch_param.date, batch_param.run'
+
 # DB access
 conn = pymysql.connect(
     host=var['host'], port=var['port'], user=var['user'], passwd=var['passwd'],
-    db=var['db'], autocommit=False
+    db=var['db'], autocommit=False, cursorclass=pymysql.cursors.SSCursor
 )
 cur = conn.cursor()
 cur.execute(args.query)

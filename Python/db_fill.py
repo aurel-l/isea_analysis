@@ -95,6 +95,10 @@ parser.add_argument(
     '--version', '-v', type=int,
     help='version of the model used'
 )
+parser.add_argument(
+    '--yes', '-y', action='store_true',
+    help='version of the model used'
+)
 args = parser.parse_args()
 
 for f in args.files:
@@ -153,9 +157,9 @@ for f in args.files:
         loop += 1
 
     cur.close()
-    user_input = input(
+    user_input = args$yes or input(
         'Are you sure you want to store these simulations in the DB [Y/n] '
     )
-    if (user_input.lower() in ['', 'y', 'yes', 'sure', 'oui', 'yep', 'yeah']):
+    if (user_input.lower() in [True, '', 'y', 'yes', 'sure', 'yep', 'yeah']):
         conn.commit()
     conn.close()
