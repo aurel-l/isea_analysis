@@ -23,11 +23,11 @@ if (variables$debug) {
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
-        changing = 'poissonMean',
-        admix = 'test4.csv'
+        changing = 'marriageThres',
+        admix = '../test/test-150529.csv'
     )
     # makes debug tests faster
-    variables$permutations = 9
+    variables$permutations = 1L
 } else {
     #CLI arguments
     parser = ArgumentParser(
@@ -124,7 +124,7 @@ p1 = ggplot(
     melted,
     aes(x = Island, y = value, colour = variable)
 )
-p1 = p1 + theme(text = element_text(size = 30))
+p1 = p1 + theme(text = element_text(size = 30L))
 p1 = p1 + geom_errorbar(aes(y = value, ymin = value, ymax = value))
 p1 = p1 + scale_color_discrete(
     name = 'type of admixture',
@@ -216,11 +216,11 @@ admix$XChrAdmixture = values$XChrAdmixture
 summaryData3 = list(
     AutosomeAdmixture = data.frame(matrix(
         nrow = length(tab) / length(variables$comparedIslands),
-        ncol = 2
+        ncol = 2L
     )),
     XChrAdmixture = data.frame(matrix(
         nrow = length(tab) / length(variables$comparedIslands),
-        ncol = 2
+        ncol = 2L
     ))
 )
 colnames(summaryData3$AutosomeAdmixture) = colnames(summaryData3$XChrAdmixture) = c(args$changing, 'mantel')
@@ -231,7 +231,7 @@ tmp = list(
         AutosomeAdmixture = dist(admix$AutosomeAdmixture),
         XChrAdmixture = dist(admix$XChrAdmixture)
     ),
-    pos = dist1(matrix(cbind(values$longitude, values$latitude), ncol = 2))
+    pos = dist1(matrix(cbind(values$longitude, values$latitude), ncol = 2L))
 )
 
 for(seed in names(tab)) {
@@ -262,7 +262,7 @@ for(seed in names(tab)) {
         as.character(set[1, args$changing]),
         res$statistic
     )
-    count = count + 1
+    count = count + 1L
 }
 
 summaryData3$AutosomeAdmixture[, args$changing] = as.factor(summaryData3$AutosomeAdmixture[, args$changing])
@@ -288,7 +288,7 @@ summaryData3$XChrAdmixture$mantel = as.numeric(summaryData3$XChrAdmixture$mantel
 p2 = ggplot(summaryData3$Auto, aes(summaryData3$Auto[, args$changing]))
 p2 = p2 + theme(text = element_text(size = variables$textSize))
 p2 = p2 + scale_x_discrete(name = args$changing)
-p2 = p2 + scale_y_continuous(name = 'simulation count', expand = c(0, 0))
+p2 = p2 + scale_y_continuous(name = 'simulation count', expand = c(0L, 0L))
 p2 = p2 + ggtitle(paste('Count of simulations for every different', args$changing))
 if (variables$debug) {
     p2
@@ -296,9 +296,9 @@ if (variables$debug) {
 
 png(
     paste0(variables$now, '-sensitivity-', args$changing, '.png'),
-    width = 1754, height = 1240
+    width = 1754L, height = 1240L
 )
-grid.arrange(p1, p2, nrow = 2)
+grid.arrange(p1, p2, nrow = 2L)
 graphics.off()
 # ggsave(
 #     paste0('sensitivity-', args$changing, '-', variables$now, '.png'),
@@ -316,10 +316,10 @@ p3 = ggplot(
     melted2,
     aes(x = melted2[, args$changing], y = value, fill = variable)
 )
-p3 = p3 + theme(text = element_text(size = 25))
+p3 = p3 + theme(text = element_text(size = 25L))
 p3 = p3 + geom_boxplot(notch = TRUE)
 p3 = p3 + scale_x_discrete(name = args$changing)
-p3 = p3 + scale_y_continuous(name = 'MSD', limits = c(0, 1), breaks = seq(0, 1, by = 0.1))
+p3 = p3 + scale_y_continuous(name = 'MSD', limits = c(0L, 1L), breaks = seq(0L, 1L, by = 0.1))
 p3 = p3 + ggtitle(paste('Mean of squared distances of admixtures in relation to', args$changing))
 if (variables$debug) {
     p3
@@ -337,10 +337,10 @@ p4 = ggplot(
     summaryData3$melted,
     aes(x = summaryData3$melted[, args$changing], y = mantel, fill = variable)
 )
-p4 = p4 + theme(text = element_text(size = 25))
+p4 = p4 + theme(text = element_text(size = 25L))
 p4 = p4 + geom_boxplot(notch = TRUE)
 p4 = p4 + scale_x_discrete(name = args$changing)
-p4 = p4 + scale_y_continuous(name = 'correlation value', limits = c(-1, 1), breaks = seq(-1, 1, by = 0.1))
+p4 = p4 + scale_y_continuous(name = 'correlation value', limits = c(-1, 1), breaks = seq(-1L, 1L, by = 0.1))
 p4 = p4 + ggtitle(paste('Partial Mantel correlation test in relation to', args$changing))
 if (variables$debug) {
     p4
@@ -348,9 +348,9 @@ if (variables$debug) {
 
 png(
     paste0(variables$now, '-comparisons-', args$changing, '.png'),
-    width = 1754, height = 1240
+    width = 1754L, height = 1240L
 )
-grid.arrange(p3, p4, nrow = 2)
+grid.arrange(p3, p4, nrow = 2L)
 
 # par(mfcol = c(length(summaryData3), length(summaryData3)), oma = c(1, 0, 0, 0))
 #

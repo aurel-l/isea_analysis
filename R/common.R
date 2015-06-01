@@ -35,7 +35,7 @@ variables = list(
     nIslands = 21L,
     toleratedPopRatio = 0.1,
     toleratedDeadDemes = 0.25,
-    permutations = 99L,
+    permutations = 1L,
     textSize = 30L
 )
 variables$paramNames = c(variables$continuousParams, variables$discreteParams)
@@ -69,7 +69,7 @@ sweepParams = function(df) {
     ))
 }
 
-toXMLFile = function(df, debug) {
+toXMLFile = function(df, debug = FALSE) {
     root = newXMLNode('sweep')
     sets = 1
     for (p in variables$paramNames) {
@@ -345,6 +345,15 @@ sensitivity = function(df, changing) {
     }
 }
 
+colWeightedMeans = compiler::cmpfun(function(m, w) {
+    W = matrix(rep(w, ncol(m)), nrow = length(w))
+    W[is.na(m)] = 0L
+    M = m * W
+    MColSum = colSums(M, na.rm = TRUE)
+    WColSum = colSums(W)
+    return(MColSum / WColSum)
+})
+
 demesToIslands = compiler::cmpfun(function(df, summaryNames, islands) {
     output = data.frame(
         run = df$run[1],
@@ -355,8 +364,7 @@ demesToIslands = compiler::cmpfun(function(df, summaryNames, islands) {
         s = df[df$Island == i, ]
         output[output$Island == i, summaryNames] = colWeightedMeans(
             s[, summaryNames],
-            s$DemeSize,
-            na.rm = TRUE
+            s$DemeSize
         )
     }
     return(output)
