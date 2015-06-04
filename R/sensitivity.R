@@ -23,8 +23,8 @@ if (variables$debug) {
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
-        changing = 'marriageThres',
-        admix = '../test/test-150529.csv'
+        changing = 'poissonMean',
+        admix = '../test/test-marriageThres0.csv'
     )
     # makes debug tests faster
     variables$permutations = 1L
@@ -287,6 +287,7 @@ summaryData3$XChrAdmixture$mantel = as.numeric(summaryData3$XChrAdmixture$mantel
 # )
 p2 = ggplot(summaryData3$Auto, aes(summaryData3$Auto[, args$changing]))
 p2 = p2 + theme(text = element_text(size = variables$textSize))
+p2 = p2 + geom_bar(fill = 'white', colour = 'black', width = 0.5)
 p2 = p2 + scale_x_discrete(name = args$changing)
 p2 = p2 + scale_y_continuous(name = 'simulation count', expand = c(0L, 0L))
 p2 = p2 + ggtitle(paste('Count of simulations for every different', args$changing))

@@ -19,7 +19,9 @@ if (variables$debug) {
     args = list(
         admix = '../../isea_new_new_new/isea/output/admixturebynode.2015.May.25.00_39_13.2.txt',
         batch_param = '',
-        output = ''
+        output = '',
+        progress = TRUE,
+        failed = TRUE
     )
 } else {
     #CLI arguments
@@ -64,32 +66,40 @@ if (args$progress) {
     )
 }
 
-admix = list(conn = file(args$admix, open = 'r'))
-param = list(conn = file(args$batch_param, open = 'r'))
+admix = new.env()
+admix$conn = file(args$admix, open = 'r')
+param = new.env()
+param$conn = file(args$batch_param, open = 'r')
 
-admix$header = readLines(admix$conn, 1L)
-param$header = readLines(param$conn, 1L)
+admix$header = strsplit(gsub('"', '', readLines(admix$conn, 1L)), ',')[[1]]
+param$header = strsplit(gsub('"', '', readLines(param$conn, 1L)), ',')[[1]]
 
-variables$hasDemeSizeInfo = grepl('DemeSize', admix$header)
-
-admix$csvTypes = c('integer', 'numeric', 'character', rep('numeric', 5L))
-admix$csvSubset = c('run', 'Label', variables$summaryNames)
-if (variables$hasDemeSizeInfo) {
-    admix$csvTypes = c(admix$csvTypes, 'integer')
-    admix$csvSubset = c(admix$csvSubset, 'DemeSize')
-}
-param$csvTypes = c(
-    'integer', rep('numeric', 2L), 'character', rep('numeric', 2L),
-    'character', 'integer', rep('numeric', 2L)
+admix$csvTypes = sapply(
+    admix$header,
+    function(x) variables$types[[x]],
+    USE.NAMES = FALSE
 )
+param$csvTypes = sapply(
+    param$header,
+    function(x) variables$types[[x]],
+    USE.NAMES = FALSE
+)
+
+#variables$hasDemeSizeInfo = grepl('DemeSize', admix$header)
+
+admix$csvSubset = c('run', 'Label', variables$summaryNames, 'DemeSize')
+#if (variables$hasDemeSizeInfo) {
+#    admix$csvTypes = c(admix$csvTypes, 'integer')
+#    admix$csvSubset = c(admix$csvSubset, 'DemeSize')
+#}
 param$csvSubset = c('run', 'randomSeed', variables$paramNames)
 
 # define hasFailed according to deme size information (only once)
-if (variables$hasDemeSizeInfo) {
+#if (variables$hasDemeSizeInfo) {
     hasFailed = hasFailedWithDemeInfo
-} else {
-    hasFailed = hasFailedWithoutDemeInfo
-}
+#} else {
+#    hasFailed = hasFailedWithoutDemeInfo
+#}
 
 variables$firstLoop = TRUE
 
@@ -126,10 +136,12 @@ repeat {
     }
 
     # parses the raw text as csv to a data frame
-    csvConn = textConnection(c(admix$header, admix$buffer))
+    csvConn = textConnection(admix$buffer)
     admix$df = read.csv(
         csvConn,
-        colClasses = admix$csvTypes
+        colClasses = admix$csvTypes,
+        header = FALSE,
+        col.names = admix$header
     )[, admix$csvSubset]
     close(csvConn)
 
@@ -160,6 +172,9 @@ repeat {
     }
 
     #
+    #if (!variables$hasDemeSizeInfo) {
+    #    admix$df$DemeSize = 1
+    #}
     aggregated = demesToIslands(
         admix$df,
         summaryNames = variables$summaryNames,
@@ -167,10 +182,12 @@ repeat {
     )
 
     # gets parameters for this simulation
-    csvConn = textConnection(c(param$header, param$buffer))
+    csvConn = textConnection(param$buffer)
     param$df = read.csv(
         csvConn,
-        colClasses = param$csvTypes
+        colClasses = param$csvTypes,
+        header = FALSE,
+        col.names = param$header
     )[, param$csvSubset]
     close(csvConn)
 
@@ -200,7 +217,7 @@ if (args$failed) {
         paste0(
             length(failedRuns),
             ' Failed runs (',
-            sprintf('%3.2f', round(length(failedRuns) / counter, digits = 2)),
+            sprintf('%3.2f', round(length(failedRuns) * 100 / counter, digits = 2)),
             '%)\n',
             paste0(
                 lapply(failedRuns, function(x) paste0('run ', x, '\n')),

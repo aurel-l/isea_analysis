@@ -4,41 +4,65 @@
 suppressMessages(library(argparse))
 suppressMessages(library(ggplot2))
 suppressMessages(library(gridExtra))
-suppressMessages(library(matrixStats))
+#suppressMessages(library(matrixStats))
 suppressMessages(library(parallel))
 #suppressMessages(library(Rcpp))
 suppressMessages(library(reshape2))
 suppressMessages(library(XML))
 
 #variables
-variables = list(
-    debug = FALSE,
-    observedIslands = c(
+variables = new.env()
+variables$debug = FALSE
+variables$observedIslands = c(
         'Chin', 'Viet', 'Mala', 'Taiw', 'Phil', 'Suma', 'Java', 'Born',
         'Bali', 'Sula', 'Sumb', 'Halm', 'Flor', 'Timo', 'Alor', 'Papu'
-    ),
-    summaryNames = c(
+    )
+variables$summaryNames = c(
         'DnaAdmixture',
         'AutosomeAdmixture', 'XChrAdmixture',
         'MitoAdmixture', 'YChrAdmixture'
-    ),
-    continuousParams = c(
+    )
+variables$continuousParams = c(
         'migrationProb', 'poissonMean', 'marriageThres',
         'growthRate', 'initialDemeAgentNumber'
-    ),
-    discreteParams = c(
+    )
+variables$discreteParams = c(
         'startingDistributionFile', 'graphFile'
-    ),
-    now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S'),
-    cores = detectCores(),
-    nDemes = 118L,
-    nIslands = 21L,
-    toleratedPopRatio = 0.1,
-    toleratedDeadDemes = 0.25,
-    permutations = 1L,
-    textSize = 30L
-)
+    )
+variables$now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
+variables$cores = detectCores()
+variables$nDemes = 118L
+variables$nIslands = 21L
+variables$toleratedPopRatio = 0.1
+variables$toleratedDeadDemes = 0.25
+variables$permutations = 1L
+variables$textSize = 30L
+
+# do not change
 variables$paramNames = c(variables$continuousParams, variables$discreteParams)
+
+# add column types here
+variables$types = new.env()
+variables$types$DnaAdmixture = 'numeric'
+variables$types$AutosomeAdmixture = 'numeric'
+variables$types$XChrAdmixture = 'numeric'
+variables$types$MitoAdmixture = 'numeric'
+variables$types$YChrAdmixture = 'numeric'
+variables$types$DemeSize = 'integer'
+variables$types$migrationProb = 'numeric'
+variables$types$poissonMean = 'numeric'
+variables$types$marriageThres = 'numeric'
+variables$types$growthRate = 'numeric'
+variables$types$asianDefinition = 'numeric'
+variables$types$initialDemeAgentNumber = 'integer'
+variables$types$startingDistributionFile = 'character'
+variables$types$graphFile = 'character'
+variables$types$tick = 'numeric'
+variables$types$Label = 'character'
+variables$types$Island = 'character'
+variables$types$run = 'integer'
+variables$types$randomSeed = 'integer'
+# end of column types
 
 sweepParams = function(df) {
     outTable = data.frame(
@@ -398,7 +422,7 @@ hasFailedWithDemeInfo = compiler::cmpfun(
     function(df, popRatio, deadDemes, islands, summaryNames) {
         max = max(df$DemeSize)
         for (i in islands) {
-            empty = df[df$Island == i, 'DemeSize'] < popRatio
+            empty = df[df$Island == i, 'DemeSize'] < popRatio * max
             # if too many empty (or nearly empty) demes on an island
             if(length(empty) * deadDemes <= sum(empty)) {
                 return(TRUE)
@@ -421,3 +445,49 @@ hasFailedWithoutDemeInfo = compiler::cmpfun(
         return(FALSE)
     }
 )
+
+addToCounts = compiler::cmpfun(function(current, simulation, params) {
+    if (nrow(current$df) == 0L) {
+        current$df = simulation
+        current$df$count = 1L
+    } else {
+        found = FALSE
+        for (i in 1L:nrow(current$df)) {
+            if (all(current$df[i, params] == simulation)) {
+                current$df$count[i] = current$df$count[i] + 1L
+                found = TRUE
+            }
+        }
+        if (!found) {
+            tmp = cbind(simulation, 1L)
+            colnames(tmp) = c(colnames(simulation), 'count')
+            current$df = rbind(current$df, tmp)
+            for (p in params) {
+                current$changing[p] = length(unique(current$df[, p]))
+            }
+        }
+    }
+    return(current)
+})
+
+analysisType = compiler::cmpfun(function(changing) {
+    if (changing == 0) {
+        output = 'stability'
+    } else if (changing == 1) {
+        output = 'sensitivity'
+    } else if (changing == 2) {
+        output = 'sensitivity'
+    } else {
+        stop(paste('cannot perform analysis on', changing, 'changing parameters'))
+    }
+    return(output)
+})
+
+addToSensit = compiler::cmpfun(function(current, simulation) {
+    melted = melt(simulation, id = 'Island')
+    if (nrow(current) == 0L) {
+        return(melted)
+    } else {
+        return(rbind(current, melted))
+    }
+})
