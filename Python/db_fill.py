@@ -118,11 +118,12 @@ for f in args.files:
     )
 
     # change path if path is not absolute
-    if (not f.startswith('/')):
-        f = '../R/{}'.format(f)
+    #if (not f.startswith('/')):
+    #    f = '../R/{}'.format(f)
     # execute merge.R
+    script_path = os.path.dirname(os.path.realpath(__file__))
     sp = subprocess.Popen(
-        '../R/merge.R -p -f {}'.format(f),
+        '{}/R_modules/merge.R -p -f {}'.format(script_path, f),
         stdout=subprocess.PIPE,
         shell=True
     )
@@ -157,7 +158,7 @@ for f in args.files:
         loop += 1
 
     cur.close()
-    user_input = args$yes or input(
+    user_input = args.yes or input(
         'Are you sure you want to store these simulations in the DB [Y/n] '
     )
     if (user_input.lower() in [True, '', 'y', 'yes', 'sure', 'yep', 'yeah']):

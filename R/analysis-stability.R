@@ -41,20 +41,29 @@ if (!variables$debug) {
 }
 
 ##### admix gradient plot
-summary$sensit$aggr$mean = aggregate(
+summary$sensit$aggr = aggregate(
     . ~ Island + variable,
     data = summary$sensit$all,
     FUN = mean
+)
+summary$sensit$aggr$stddev = aggregate(
+    . ~ Island + variable,
+    data = summary$sensit$all,
+    FUN = sd
 )$value
 pd = position_dodge(0.2)
 # boxplots
 p2 = ggplot(
     summary$sensit$aggr,
-    aes_string(x = 'variable', y = 'mean', colour = 'Island', ymax = 'mean + value')
+    aes_string(
+        x = 'variable',
+        y = 'value', ymax = 'value + stddev',
+        colour = 'Island'
+    )
 )
 p2 = p2 + geom_point(aes_string(shape = 'Island'), position = pd, size = 5L)
 p2 = p2 + geom_errorbar(
-    aes_string(ymin = 'mean - value', ymax = 'mean + value'),
+    aes_string(ymin = 'value - stddev', ymax = 'value + stddev'),
     position = pd, alpha = 0.35
 )
 p2 = p2 + geom_line(aes_string(group = 'Island'), alpha = 0.35)

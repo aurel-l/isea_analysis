@@ -1,5 +1,4 @@
 
-
 ##### sensitivity plot
 # plot
 p1 = ggplot(
@@ -61,9 +60,133 @@ if (!variables$debug) {
             '-sensitivity-',
             changing[1L],
             '.png'),
-        width = 1754L, height = 1240L
+        width = 1240L, height = 1754L
     )
     grid.arrange(p1, p2, nrow = 2L)
     graphics.off()
 }
 
+##### plot comparisons
+# boxplot MSD
+p3 = ggplot(
+    summary$comp$all[summary$comp$all$comparison == 'MSD', ],
+    aes_string(x = changing[1L], y = 'value', fill = 'admixture')
+)
+p3 = p3 + geom_boxplot(notch = TRUE)
+# x axis
+p3 = p3 + scale_x_discrete(name = changing[1L])
+# y axis
+p3 = p3 + scale_y_continuous(
+    name = 'MSD', limits = c(0L, 1L),
+    breaks = seq(0L, 1L, by = 0.1)
+)
+# fill axis
+p3 = p3 + scale_fill_discrete(labels = c('Auto', 'X-Chr'))
+# theme
+p3 = p3 + theme(text = element_text(size = variables$textSize))
+# title
+p3 = p3 + ggtitle(paste('Mean of squared distances of admixtures for every different', changing[1L]))
+
+if (variables$debug) {
+    print(p3)
+}
+
+# boxplot correlation
+p4 = ggplot(
+    summary$comp$all[summary$comp$all$comparison == 'cor', ],
+    aes_string(x = changing[1L], y = 'value', fill = 'admixture')
+)
+p4 = p4 + geom_boxplot(notch = TRUE)
+# x axis
+p4 = p4 + scale_x_discrete(name = changing[1L])
+# y axis
+p4 = p4 + scale_y_continuous(
+    name = 'Partial Mantel\ncorrelation', limits = c(-1L, 1L),
+    breaks = seq(-1L, 1L, by = 0.2)
+)
+# fill axis
+p4 = p4 + scale_fill_discrete(labels = c('Auto', 'X-Chr'))
+# theme
+p4 = p4 + theme(text = element_text(size = variables$textSize))
+# title
+p4 = p4 + ggtitle(paste('Partial Mantel correlation test for every different', changing[1L]))
+
+if (variables$debug) {
+    print(p4)
+}
+
+if (!variables$debug) {
+    png(
+        paste0(
+            variables$now,
+            '-comparisons-',
+            changing[1L],
+            '.png'),
+        width = 1240L, height = 1754L
+    )
+    grid.arrange(p3, p4, nrow = 2L)
+    graphics.off()
+}
+
+##### X Chromosome - Autosome
+pd = position_dodge(0.4)
+# plot with error bars
+p5 = ggplot(
+    summary$diff$aggr,
+    aes_string(
+        x = changing[1L],
+        y = 'diffXAuto', ymax = 'diffXAuto + stddev',
+        colour = 'Island',
+        group = 'Island'
+    )
+)
+# points
+p5 = p5 + geom_point(aes_string(shape = 'Island'), position = pd, size = 5L)
+if (changing[1L] %in% variables$continuousParams) {
+    p5 = p5 + geom_line()
+}
+# error bars
+p5 = p5 + geom_errorbar(
+    aes_string(ymin = 'diffXAuto - stddev', ymax = 'diffXAuto + stddev'),
+    width = 1L, position = pd, alpha = 0.35
+)
+# x axis
+p5 = p5 + scale_x_discrete(
+    name = args$changing,
+    labels=clean(as.character(unique(summary$diff$aggr[, changing[1L]])))
+)
+# y axis
+p5 = p5 + scale_y_continuous(
+    name = 'XChr - Autosomal admixture',
+    limits = c(
+        min(-0.2, min(summary$diff$aggr$diffXAuto - summary$diff$aggr$stddev)),
+        max(0.2, max(summary$diff$aggr$diffXAuto + summary$diff$aggr$stddev))
+    ),
+    breaks = seq(-1L, 1L, by = 0.1)
+)
+# island shapes scale
+p5 = p5 + scale_shape_manual(values = rep(15L:18L, 4L))
+# theme
+p5 = p5 + theme(text = element_text(size = variables$textSize))
+# title
+p5 = p5 + ggtitle(paste(
+    'Difference of admixture between XChr and Autosome in relation to changes in',
+    changing[1L]
+))
+
+if (variables$debug) {
+    print(p5)
+}
+
+if (!variables$debug) {
+    png(
+        paste0(
+            variables$now,
+            '-admixDiff-',
+            changing[1L],
+            '.png'),
+        width = 1754L, height = 1240L
+    )
+    p5
+    graphics.off()
+}

@@ -17,7 +17,7 @@ tryCatch({
 
 if (variables$debug) {
     args = list(
-        admix = '../../isea_new_new_new/isea/output/admixturebynode.2015.May.25.00_39_13.2.txt',
+        admix = '../../isea_new_new_new/isea/output/admixturebynode.2015.Jun.09.01_50_10.txt',
         batch_param = '',
         output = '',
         progress = TRUE,
@@ -93,13 +93,6 @@ admix$csvSubset = c('run', 'Label', variables$summaryNames, 'DemeSize')
 #    admix$csvSubset = c(admix$csvSubset, 'DemeSize')
 #}
 param$csvSubset = c('run', 'randomSeed', variables$paramNames)
-
-# define hasFailed according to deme size information (only once)
-#if (variables$hasDemeSizeInfo) {
-    hasFailed = hasFailedWithDemeInfo
-#} else {
-#    hasFailed = hasFailedWithoutDemeInfo
-#}
 
 variables$firstLoop = TRUE
 
@@ -216,13 +209,13 @@ if (args$failed) {
     write(
         paste0(
             length(failedRuns),
-            ' Failed runs (',
+            ' Failed runs out of ',
+            counter - 1,
+            ' (',
             sprintf('%3.2f', round(length(failedRuns) * 100 / counter, digits = 2)),
             '%)\n',
-            paste0(
-                lapply(failedRuns, function(x) paste0('run ', x, '\n')),
-                collapse = ''
-            )
+            paste0(failedRuns, collapse = ', '),
+            '\n'
         ),
         stderr()
     )
