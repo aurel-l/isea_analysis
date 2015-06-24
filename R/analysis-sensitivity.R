@@ -86,6 +86,13 @@ p3 = p3 + scale_fill_discrete(labels = c('Auto', 'X-Chr'))
 p3 = p3 + theme(text = element_text(size = variables$textSize))
 # title
 p3 = p3 + ggtitle(paste('Mean of squared distances of admixtures for every different', changing[1L]))
+# compare cases
+p3 = p3 + geom_hline(
+    aes_string(yintercept = 'value', colour = 'admixture', linetype = 'reference_case'),
+    variables$cases[variables$cases$comparison == 'MSD', ],
+    show_guide = TRUE
+)
+p3 = p3 + guides(colour = FALSE)
 
 if (variables$debug) {
     print(p3)
@@ -110,6 +117,28 @@ p4 = p4 + scale_fill_discrete(labels = c('Auto', 'X-Chr'))
 p4 = p4 + theme(text = element_text(size = variables$textSize))
 # title
 p4 = p4 + ggtitle(paste('Partial Mantel correlation test for every different', changing[1L]))
+# compare cases
+p4 = p4 + geom_hline(
+    aes_string(yintercept = 'value', colour = 'admixture', linetype = 'reference_case'),
+    variables$cases[variables$cases$comparison == 'cor', ],
+    show_guide = TRUE
+)
+p4 = p4 + guides(colour = FALSE)
+
+# p4 = p4 + geom_hline(aes(
+#     yintercept = c(
+#         0.6880700, 0.7416792,# worst case
+#         1.0, 1.0# opposite case
+#     ), colour = c(
+#         rep(c('red', 'blue'), 2)
+#     ), linetype = c(
+#         rep(c('dotdash', 'dotted'), each = 2)
+#     )
+# ), show_guide = TRUE)
+#p4 = p4 + scale_linetype_manual(name = 'line', values = c(worst = 'dotdash', opposite = 'dotted'))
+# p4 = p4 + guides(
+#     linetype = guide_legend('line', override.aes = list(linetype = 15, c('dotdash', 'dotted')))
+# )
 
 if (variables$debug) {
     print(p4)
@@ -187,6 +216,6 @@ if (!variables$debug) {
             '.png'),
         width = 1754L, height = 1240L
     )
-    p5
+    print(p5)
     graphics.off()
 }

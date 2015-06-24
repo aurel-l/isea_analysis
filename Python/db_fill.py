@@ -97,7 +97,7 @@ parser.add_argument(
 )
 parser.add_argument(
     '--yes', '-y', action='store_true',
-    help='version of the model used'
+    help='commit the simulations to the data base without asking for user confirmation'
 )
 args = parser.parse_args()
 

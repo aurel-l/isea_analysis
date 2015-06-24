@@ -90,8 +90,8 @@ if (!variables$debug) {
     )
     grid.arrange(p1, p2, nrow = 2L)
     graphics.off()
-    svg(
-        paste0(filename, '.svg'),
+    postscript(
+        paste0(filename, '.ps'),
         width = 12L, height = 17L
     )
     grid.arrange(p1, p2, nrow = 2L)

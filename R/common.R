@@ -65,6 +65,27 @@ variables$types$run = 'integer'
 variables$types$randomSeed = 'integer'
 # end of column types
 
+# compare cases (hardcoded)
+cases = c('all_asian', 'all_melanesian', 'worst_case')
+variables$cases = data.frame(
+    reference_case = rep(cases, each = 4),
+    value = numeric(length(cases) * 4),
+    comparison = rep(rep(c('MSD', 'cor'), each = 2), length(cases)),
+    admixture = rep(rep(c('Autosome', 'XChr'), 2), length(cases))
+)
+variables$cases$reference_case = factor(variables$cases$reference_case)
+variables$cases$admixture = factor(variables$cases$admixture)
+variables$cases$value[variables$cases$reference_case == 'all_asian'] = c(
+    0.09666250, 0.07509375, NA, NA
+)
+variables$cases$value[variables$cases$reference_case == 'all_melanesian'] = c(
+    0.7241625, 0.7813438, NA, NA
+)
+variables$cases$value[variables$cases$reference_case == 'worst_case'] = c(
+    0.7716625, 0.8238437, 0.6880700, 0.7416792
+)
+variables$cases = variables$cases[!is.na(variables$cases$value), ]
+
 toXMLFile = compiler::cmpfun(function(df, sets) {
     root = newXMLNode('sweep')
     for (p in colnames(df)) {
