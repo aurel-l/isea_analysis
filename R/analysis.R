@@ -226,6 +226,12 @@ repeat {
         loop$type = analysisType(loop$changing)
     }
 
+    # store difference information
+    summary$diff$all[[loop$counter]] = data$df[
+        ,
+        c('Island', variables$paramNames, 'diffXAuto')
+    ]
+
     # subset of Islands to compare real and simulated
     data$df = data$df[data$df$Island %in% variables$comparedIslands, ]
 
@@ -264,12 +270,6 @@ repeat {
     compared$value = c(msd, cor)
     # store comparison information
     summary$comp$all[[loop$counter]] = compared
-
-    # store difference information
-    summary$diff$all[[loop$counter]] = data$df[
-        ,
-        c('Island', variables$paramNames, 'diffXAuto')
-    ]
 
     # update displayed information if verbose mode is activated
     if (args$verbose) {
@@ -321,7 +321,7 @@ if (args$verbose) {
 }
 
 # concatenate at once all the list filled earlier
-# 3 lists of pointers to small memory blocks -> 3 big memory blocks
+# 3 lists of pointers to a lot of small memory blocks -> 3 big memory blocks
 summary$sensit$all = do.call('rbind', summary$sensit$all)
 summary$comp$all = do.call('rbind', summary$comp$all)
 summary$diff$all = do.call('rbind', summary$diff$all)

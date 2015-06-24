@@ -30,6 +30,9 @@ variables$continuousParams = c(
 variables$discreteParams = c(
         'startingDistributionFile', 'graphFile'
     )
+variables$orderedAdmixtures = c(
+    'MitoAdmixture', 'XChrAdmixture', 'AutosomeAdmixture', 'YChrAdmixture'
+)
 variables$now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 variables$cores = detectCores()
 variables$nDemes = 118L

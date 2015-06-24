@@ -2,10 +2,10 @@
 # drop DnaAdmixture information
 summary$sensit$all = summary$sensit$all[
     summary$sensit$all$variable != 'DnaAdmixture',
-    ]
+]
 summary$sensit$aggr = summary$sensit$aggr[
     summary$sensit$aggr$variable != 'DnaAdmixture',
-    ]
+]
 
 ##### sensitivity plot
 # boxplots
@@ -36,7 +36,7 @@ if (!variables$debug) {
         paste0(variables$now, '-stability.png'),
         width = 1754L, height = 1240L
     )
-    p1
+    print(p1)
     graphics.off()
 }
 
@@ -45,6 +45,10 @@ summary$sensit$aggr = aggregate(
     . ~ Island + variable,
     data = summary$sensit$all,
     FUN = mean
+)
+summary$sensit$aggr$variable = factor(
+    summary$sensit$aggr$variable,
+    levels = variables$orderedAdmixtures
 )
 summary$sensit$aggr$stddev = aggregate(
     . ~ Island + variable,
@@ -87,6 +91,6 @@ if (!variables$debug) {
         paste0(variables$now, '-stability-admixGradient.png'),
         width = 1754L, height = 1240L
     )
-    p2
+    print(p2)
     graphics.off()
 }

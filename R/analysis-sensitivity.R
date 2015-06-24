@@ -194,7 +194,7 @@ p5 = p5 + scale_y_continuous(
     breaks = seq(-1L, 1L, by = 0.1)
 )
 # island shapes scale
-p5 = p5 + scale_shape_manual(values = rep(15L:18L, 4L))
+p5 = p5 + scale_shape_manual(values = c(rep(15L:18L, 5L), 15L))
 # theme
 p5 = p5 + theme(text = element_text(size = variables$textSize))
 # title
