@@ -25,13 +25,17 @@ variables$summaryNames = c(
     )
 variables$continuousParams = c(
         'migrationProb', 'poissonMean', 'marriageThres',
-        'growthRate', 'initialDemeAgentNumber'
+        'growthRate', 'initialDemeAgentNumber',
+        'poissonMeanRatio', 'migrationProbRatio'
     )
 variables$discreteParams = c(
         'startingDistributionFile', 'graphFile'
     )
 variables$orderedAdmixtures = c(
     'MitoAdmixture', 'XChrAdmixture', 'AutosomeAdmixture', 'YChrAdmixture'
+)
+variables$ABCsummary = c(
+    'Autosome_MSD', 'XChr_MSD', 'Autosome_cor', 'XChr_cor'
 )
 variables$now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 variables$cores = detectCores()
@@ -55,6 +59,8 @@ variables$types$YChrAdmixture = 'numeric'
 variables$types$DemeSize = 'integer'
 variables$types$migrationProb = 'numeric'
 variables$types$poissonMean = 'numeric'
+variables$types$migrationProbRatio = 'numeric'
+variables$types$poissonMeanRatio = 'numeric'
 variables$types$marriageThres = 'numeric'
 variables$types$growthRate = 'numeric'
 variables$types$asianDefinition = 'numeric'

@@ -8,6 +8,10 @@ summary$sensit$aggr = summary$sensit$aggr[
 ]
 
 ##### sensitivity plot
+summary$sensit$all$variable = factor(
+    summary$sensit$all$variable,
+    levels = variables$orderedAdmixtures
+)
 # boxplots
 p1 = ggplot(
     summary$sensit$all,

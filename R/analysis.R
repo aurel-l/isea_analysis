@@ -19,7 +19,8 @@ if (variables$debug) {
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
-        admix = '../test/June.csv',
+        admix = '../test/150710-abc/out.merged',
+        ABC = TRUE,
         repeated = TRUE,
         verbose = TRUE
     )
@@ -38,6 +39,10 @@ if (variables$debug) {
     parser$add_argument(
         'admix', type = 'character', nargs = '?', default = 'stdin',
         help = 'path to the admix file, defaults to stdin'
+    )
+    parser$add_argument(
+        '--ABC', '-a', action='store_true',
+        help = 'perform an ABC analysis'
     )
     parser$add_argument(
         '--repeated', '-r', action='store_true',
@@ -112,12 +117,14 @@ summary$sensit = list(
     all = list(),
     aggr = data.frame()
 )
-# counts of unique parameter sets
-summary$counts = list(
-    df = data.frame(),
-    changing = rep.int(1L, length(variables$paramNames))
-)
-names(summary$counts$changing) = variables$paramNames
+if (!args$ABC) {
+    # counts of unique parameter sets
+    summary$counts = list(
+        df = data.frame(),
+        changing = rep.int(1L, length(variables$paramNames))
+    )
+    names(summary$counts$changing) = variables$paramNames
+}
 # comparisons real / simulated
 summary$comp = list(
     all = list(),
@@ -199,31 +206,37 @@ repeat {
 
     simuParams = data$df[1, variables$paramNames]
 
-    if (nrow(summary$counts$df) == 0L) {
-        summary$counts$df = simuParams
-        summary$counts$df$count = 1L
-    } else {
-        found = FALSE
-        for (i in 1L:nrow(summary$counts$df)) {
-            if (all(summary$counts$df[i, variables$paramNames] == simuParams)) {
-                summary$counts$df$count[i] = summary$counts$df$count[i] + 1L
-                found = TRUE
+    if (!args$ABC) {
+        if (nrow(summary$counts$df) == 0L) {
+            summary$counts$df = simuParams
+            summary$counts$df = data.frame(
+                lapply(summary$counts$df, as.character),
+                stringsAsFactors = FALSE
+            )
+            summary$counts$df$count = 1L
+        } else {
+            found = FALSE
+            for (i in 1L:nrow(summary$counts$df)) {
+                if (all(summary$counts$df[i, variables$paramNames] == simuParams)) {
+                    summary$counts$df$count[i] = summary$counts$df$count[i] + 1L
+                    found = TRUE
+                }
+            }
+            if (!found) {
+                tmp = cbind(simuParams, 1L)
+                colnames(tmp) = c(colnames(simuParams), 'count')
+                summary$counts$df = rbind(summary$counts$df, tmp)
+                for (p in variables$paramNames) {
+                    summary$counts$changing[p] = length(unique(summary$counts$df[, p]))
+                }
             }
         }
-        if (!found) {
-            tmp = cbind(simuParams, 1L)
-            colnames(tmp) = c(colnames(simuParams), 'count')
-            summary$counts$df = rbind(summary$counts$df, tmp)
-            for (p in variables$paramNames) {
-                summary$counts$changing[p] = length(unique(summary$counts$df[, p]))
-            }
-        }
-    }
 
-    tmp = sum(summary$counts$changing != 1)
-    if (loop$changing != tmp) {
-        loop$changing = tmp
-        loop$type = analysisType(loop$changing)
+        tmp = sum(summary$counts$changing != 1)
+        if (loop$changing != tmp) {
+            loop$changing = tmp
+            loop$type = analysisType(loop$changing)
+        }
     }
 
     # store difference information
@@ -241,11 +254,16 @@ repeat {
         as.numeric(unlist(data$df[, c('AutosomeAdmixture', 'XChrAdmixture')])),
         ncol = 2
     )
-    # prepare comparison information data frame with 4 rows for comp values
-    compared = data$df[1:4, variables$paramNames]
-    # every combination of admixture and comparison value, 4 values
-    compared$admixture = rep(c('AutosomeAdmixture', 'XChrAdmixture'), 2)
-    compared$comparison = rep(c('MSD', 'cor'), each = 2)
+    if (args$ABC) {
+        # prepare comparison information data frame with 1 rows for comp values
+        compared = data$df[1, variables$paramNames]
+    } else {
+        # prepare comparison information data frame with 4 rows for comp values
+        compared = data$df[1:4, variables$paramNames]
+        # every combination of admixture and comparison value, 4 values
+        compared$admixture = rep(c('AutosomeAdmixture', 'XChrAdmixture'), 2)
+        compared$comparison = rep(c('MSD', 'cor'), each = 2)
+    }
     # mean squared distance (numeric(2)), both admixtures in the same operation
     msd = colMeans((ref$realMat - simu) ^ 2)
 
@@ -267,18 +285,27 @@ repeat {
         )$statistic
     )
     # add comparison information
-    compared$value = c(msd, cor)
+    if (args$ABC) {
+        compared[, variables$ABCsummary] =
+            c(msd, cor)
+    } else {
+        compared$value = c(msd, cor)
+    }
     # store comparison information
     summary$comp$all[[loop$counter]] = compared
 
     # update displayed information if verbose mode is activated
     if (args$verbose) {
-        cat('\r', paste(
-            'Simulations:', loop$counter,
-            '- changing params:', loop$changing,
-            '- analysis:', loop$type,
-            '- sets:', nrow(summary$counts$df)
-        ))
+        if (args$ABC) {
+            text = '- analysis: ABC'
+        } else {
+            text = paste(
+                '- changing params:', loop$changing,
+                '- analysis:', loop$type,
+                '- sets:', nrow(summary$counts$df)
+            )
+        }
+        cat('\r', paste('Simulations:', loop$counter, text))
         flush.console()
     }
 }
@@ -302,18 +329,20 @@ if (args$repeated) {
     }
 }
 
-# parameter sweep information
-XMLFile = toXMLFile(
-    subset(summary$counts$df, select = -count),
-    prod(summary$counts$changing)
-)
-# if in debug mode
-if (variables$debug) {
-    # only display sweep information
-    print(XMLFile)
-} else {
-    # otherwise, only save it in a file
-    invisible(saveXML(XMLFile, paste0(variables$now, '-parameters.xml')))
+if (!args$ABC) {
+    # parameter sweep information
+    XMLFile = toXMLFile(
+        subset(summary$counts$df, select = -count),
+        prod(summary$counts$changing)
+    )
+    # if in debug mode
+    if (variables$debug) {
+        # only display sweep information
+        print(XMLFile)
+    } else {
+        # otherwise, only save it in a file
+        invisible(saveXML(XMLFile, paste0(variables$now, '-parameters.xml')))
+    }
 }
 
 if (args$verbose) {
@@ -325,66 +354,69 @@ if (args$verbose) {
 summary$sensit$all = do.call('rbind', summary$sensit$all)
 summary$comp$all = do.call('rbind', summary$comp$all)
 summary$diff$all = do.call('rbind', summary$diff$all)
-# since we don't have references to the lists of pointers, ask R to gc them
+# since we've overwritten references to the lists of pointers, ask R to gc them
 invisible(gc())
 
 if (args$verbose) {
-    cat('now performing', loop$type, 'analysis\n')
+    cat('now performing', if (args$ABC) 'ABC' else loop$type, 'analysis\n')
 }
 
-maxCount = max(summary$counts$df$count)
-
-if (loop$type == 'stability') {
-    sourced = 'analysis-stability.R'
-    changing = c()
+if (args$ABC) {
+    sourced = 'analysis-ABC.R'
 } else {
-    changing = names(
-        summary$counts$changing[order(-summary$counts$changing)]
-    )[1:loop$changing]
-    for (p in changing) {
-        summary$counts$df[, p] = factor(summary$counts$df[, p])
-        summary$comp$all[, p] = factor(summary$comp$all[, p])
-        summary$diff$all[, p] = factor(summary$diff$all[, p])
-    }
-    summary$sensit$aggr = aggregate(
-        . ~ Island + variable,
-        data = summary$sensit$all,
-        FUN = sd
-    )
-    if (loop$changing == 1) {
-        sourced = 'analysis-sensitivity.R'
+    maxCount = max(summary$counts$df$count)
+    if (loop$type == 'stability') {
+        sourced = 'analysis-stability.R'
+        changing = c()
     } else {
-        sourced = 'analysis-sensitivity2D.R'
+        changing = names(
+            summary$counts$changing[order(-summary$counts$changing)]
+        )[1:loop$changing]
+        for (p in changing) {
+            summary$counts$df[, p] = factor(summary$counts$df[, p])
+            summary$comp$all[, p] = factor(summary$comp$all[, p])
+            summary$diff$all[, p] = factor(summary$diff$all[, p])
+        }
+        summary$sensit$aggr = aggregate(
+            . ~ Island + variable,
+            data = summary$sensit$all,
+            FUN = sd
+        )
+        if (loop$changing == 1) {
+            sourced = 'analysis-sensitivity.R'
+        } else {
+            sourced = 'analysis-sensitivity2D.R'
+        }
     }
-}
 
-summary$comp$all = summary$comp$all[, c(changing, 'admixture', 'comparison', 'value')]
-summary$diff$all = summary$diff$all[, c(changing, 'Island', 'diffXAuto')]
-if (loop$changing == 2) {
-    summary$comp$aggr = aggregate(
-        value ~ .,
-        data = summary$comp$all,
-        FUN = mean
-    )
-    summary$comp$aggr$sd = aggregate(
-        value ~ .,
-        data = summary$comp$all,
-        FUN = sd
-    )$value
-    for (p in changing) {
-        summary$comp$aggr[, p] = factor(summary$comp$aggr[, p])
+    summary$comp$all = summary$comp$all[, c(changing, 'admixture', 'comparison', 'value')]
+    summary$diff$all = summary$diff$all[, c(changing, 'Island', 'diffXAuto')]
+    if (loop$changing == 2) {
+        summary$comp$aggr = aggregate(
+            value ~ .,
+            data = summary$comp$all,
+            FUN = mean
+        )
+        summary$comp$aggr$sd = aggregate(
+            value ~ .,
+            data = summary$comp$all,
+            FUN = sd
+        )$value
+        for (p in changing) {
+            summary$comp$aggr[, p] = factor(summary$comp$aggr[, p])
+        }
+    } else if(loop$changing == 1) {
+        summary$diff$aggr = aggregate(
+            as.formula(paste('diffXAuto ~ Island +', changing)),
+            data = summary$diff$all,
+            FUN = mean
+        )
+        summary$diff$aggr$stddev = aggregate(
+            as.formula(paste('diffXAuto ~ Island +', changing)),
+            data = summary$diff$all,
+            FUN = sd
+        )$diffXAuto
     }
-} else if(loop$changing == 1) {
-    summary$diff$aggr = aggregate(
-        as.formula(paste('diffXAuto ~ Island +', changing)),
-        data = summary$diff$all,
-        FUN = mean
-    )
-    summary$diff$aggr$stddev = aggregate(
-        as.formula(paste('diffXAuto ~ Island +', changing)),
-        data = summary$diff$all,
-        FUN = sd
-    )$diffXAuto
 }
 
 # source next analysis script
