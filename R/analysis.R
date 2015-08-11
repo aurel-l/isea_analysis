@@ -213,8 +213,9 @@ repeat {
 
     simuParams = data$df[1, variables$paramNames]
 
-    # COMMENT TODO
+    # only for grid searches
     if (!args$ABC) {
+        # if not already initialised, creates a data frame for the parameters
         if (nrow(summary$counts$df) == 0L) {
             summary$counts$df = simuParams
             summary$counts$df = data.frame(
@@ -224,6 +225,7 @@ repeat {
             summary$counts$df$count = 1L
         } else {
             found = FALSE
+            # tries to find an already corresponding parameter set
             for (i in 1L:nrow(summary$counts$df)) {
                 test = summary$counts$df[i, variables$paramNames] == simuParams
                 if (all(test)) {
@@ -232,6 +234,7 @@ repeat {
                 }
             }
             if (!found) {
+                # if not, adds this set to the end of the data frame of sets
                 tmp = cbind(simuParams, 1L)
                 colnames(tmp) = c(colnames(simuParams), 'count')
                 summary$counts$df = rbind(summary$counts$df, tmp)

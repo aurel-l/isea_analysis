@@ -45,8 +45,17 @@ var = {
         'XChrAdmixture', 'YChrAdmixture', 'MitoAdmixture'
     ],
     'sep': re.compile('"?,"?'),
-    'n_islands': 21
+    'n_islands': 21,
+    'merging_script': '{}/R_modules/merge.R'.format(
+        # gets the path of the current script
+        os.path.dirname(os.path.realpath(__file__))
+    )
 }
+
+# raises an error if the merging script path is incorrect
+if (not os.path.isfile(var['merging_script'])):
+    raise(FileNotFoundError('missing merge.R script'))
+
 # SQL string templates
 var['sql'] = {
     # inserting parameter values to the batch_param table
@@ -140,12 +149,9 @@ for f in args.files:
         "%Y.%b.%d.%H_%M_%S"
     )
 
-    # gets the path of the current script
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    # executes merge.R in an independant subprocess
-    # TODO: check if path is correct
+    # executes merging script in an independant subprocess
     sp = subprocess.Popen(
-        '{}/R_modules/merge.R -p -f {}'.format(script_path, f),
+        '{} -pf {}'.format(var['merging_script'], f),
         # sets a reference to the subprocess' stdout pipe
         stdout=subprocess.PIPE,
         shell=True
