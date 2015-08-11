@@ -2,7 +2,7 @@
 
 nIslands=21
 
-min=1
+min=10
 max=33600
 
 loop=1
@@ -20,7 +20,7 @@ do
   printf "Performing benchmark…\n\033[1;34m"
   
   statFileName=$(printf "%06d" $loop)-${r}-$(wc -c <".tmp").stats
-  /usr/bin/time -v -o stats/$statFileName ../R/merge.R -p adm.txt .tmp > /dev/null
+  /usr/bin/time -v -o stats/$statFileName ../R/merge.R -pf adm.txt .tmp /dev/null 2> /dev/null
   
   [ $? -ne 0 ] && exitColor="\033[1;31m" || exitColor="\033[1;32m"
   printf "${exitColor}…done\033[0m\n"

@@ -3,169 +3,223 @@ library(ade4)
 library(lattice)
 library(vegan)
 library(SpatialTools)
-library(ade4)
+library(gclus)
 
-#variables
-variables.summaryNames = c(
-    'DnaAdmixture', 'AutosomeAdmixture', 'XChrAdmixture',
-    'MitoAdmixture', 'YChrAdmixture'
-)
-variables.paramNames = c(
-    'migrationProb', 'poissonMean', 'marriageThres', 'growthRate',
-    'initialDemeAgentNumber', 'startingDistributionFile', 'graphFile'
-)
-variables.admixFile = '../../isea/isea/output/admixturebynode.2015.Mar.26.13_01_14.txt'
-variables.orderFile = '../Data/isea_admixture_data_for_comparison_2.csv'
-variables.now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
+names = list('all_asian', 'all_melanesian', 'real', 'inverted', 'runif1', 'runif2')
+admix = list()
 
-#CLI arguments
-arguments = commandArgs(trailingOnly = TRUE)
-if (length(arguments) >= 1) {
-    variables.orderFile = arguments[1]
-    if (length(arguments) >= 2) {
-        variables.admixFile = arguments[2]
-    } else {
-        variables.admixFile = file('stdin')
+nperms = 10
+nrands = 200
+
+for (i in 1:length(names)) {
+    admix[[i]] = read.csv(paste0('../Data/extremes/', names[[i]], '.csv'))
+}
+coordinates = read.csv('../Data/extremes/coordinates.csv')
+
+customDiff = function(a, b = a) {
+    mata = matrix(
+        rep(a, length(b)),
+        nrow = length(b),
+        ncol = length(a)
+    )
+    matb = matrix(
+        rep(b, length(a)),
+        nrow = length(a),
+        ncol = length(b)
+    )
+    return(mata - t(matb))
+}
+
+funNames = list(
+    'Standard error',
+    'Mean of Squared Distances',
+    'Sum of Squared Distances',
+    'Standard error on admixture distance matrices',
+    'Mean of Squared Distances on admixture distance matrices',
+    'Weighted mean of Squared Distances on admixture distance matrices - 1',
+    'Weighted mean of Squared Distances on admixture distance matrices - 2',
+    'Mantel test on admixture distance matrices (cor Pearson)',
+    'Partial Mantel test on admixture distance matrices (cor Pearson)',
+    'Mantel test on admixture distance matrices (cor Spearman)',
+    'Partial Mantel test on admixture distance matrices (cor Spearman)',
+    'Mantel test on admixture distance matrices (cor Kendall)',
+    'Partial Mantel test on admixture distance matrices (cor Kendall)',
+    'Coefficient of vectorial correlation on admixture distance matrices',
+    'Coinertia analysis on admixture distance matrices',
+    'Procustes analysis on admixture distance matrices'
+)
+funCodes = list(
+    'StdErrnotMat', 'MSDnotMat', 'SSDnotMat', 'StdErr', 'MSD', 'WMSD_1', 'WMSD_2',
+    'MantP', 'PMantP', 'MantS', 'PMantS', 'MantK', 'PMantK', 'VectCorr', 'coinertia', 'Procustes'
+)
+
+funs = list(
+    function(a, b, c) {
+        return(sqrt(mean((a$DnaAdmixture - b$DnaAdmixture) ^ 2)))
+    },
+    function(a, b, c) {
+        return(mean((a$DnaAdmixture - b$DnaAdmixture) ^ 2))
+    },
+    function(a, b, c) {
+        return(sum((a$DnaAdmixture - b$DnaAdmixture) ^ 2))
+    },
+    function(a, b, c) {
+        return(sqrt(mean((customDiff(a$DnaAdmixture) - customDiff(b$DnaAdmixture)) ^ 2)))
+    },
+    function(a, b, c) {
+        return(mean((customDiff(a$DnaAdmixture) - customDiff(b$DnaAdmixture)) ^ 2))
+    },
+    function(a, b, c) {
+        geoDist = dist1(matrix(cbind(coordinates$longitude, coordinates$latitude), ncol = 2))
+        vectGeoDist = as.vector(as.matrix(geoDist))
+        maxGeoDist = max(vectGeoDist)
+        weights = -vectGeoDist + maxGeoDist + 1
+
+        dista = customDiff(a$DnaAdmixture)
+        distb = customDiff(b$DnaAdmixture)
+        vectDist = as.vector(as.matrix((dista - distb) ^ 2))
+
+        return(weighted.mean(vectDist, weights))
+    },
+    function(a, b, c) {
+        geoDist = dist1(matrix(cbind(coordinates$longitude, coordinates$latitude), ncol = 2))
+        diag(geoDist) = max(geoDist)
+        vectGeoDist = as.vector(as.matrix(geoDist))
+        maxGeoDist = max(vectGeoDist)
+        weights = -vectGeoDist + maxGeoDist + 1
+
+        dista = customDiff(a$DnaAdmixture)
+        distb = customDiff(b$DnaAdmixture)
+        vectDist = as.vector(as.matrix((dista - distb) ^ 2))
+
+        return(weighted.mean(vectDist, weights))
+    },
+    function(a, b, c) {
+        return(mantel(
+            customDiff(a$DnaAdmixture), customDiff(b$DnaAdmixture),
+            method = 'pearson', permutations = nperms
+        )$statistic)
+    },
+    function(a, b, c) {
+        geoDist = dist1(matrix(cbind(coordinates$longitude, coordinates$latitude), ncol = 2))
+        return(mantel.partial(
+            customDiff(a$DnaAdmixture), customDiff(b$DnaAdmixture), geoDist,
+            method = 'pearson', permutations = nperms
+        )$statistic)
+    },
+    function(a, b, c) {
+        return(mantel(
+            customDiff(a$DnaAdmixture), customDiff(b$DnaAdmixture),
+            method = 'spearman', permutations = nperms
+        )$statistic)
+    },
+    function(a, b, c) {
+        geoDist = dist1(matrix(cbind(coordinates$longitude, coordinates$latitude), ncol = 2))
+        return(mantel.partial(
+            customDiff(a$DnaAdmixture), customDiff(b$DnaAdmixture), geoDist,
+            method = 'spearman', permutations = nperms
+        )$statistic)
+    },
+    function(a, b, c) {
+        return(mantel(
+            customDiff(a$DnaAdmixture), customDiff(b$DnaAdmixture),
+            method = 'kendall', permutations = nperms
+        )$statistic)
+    },
+    function(a, b, c) {
+        geoDist = dist1(matrix(cbind(coordinates$longitude, coordinates$latitude), ncol = 2))
+        return(mantel.partial(
+            customDiff(a$DnaAdmixture), customDiff(b$DnaAdmixture), geoDist,
+            method = 'kendall', permutations = nperms
+        )$statistic)
+    },
+    function(a, b, c) {
+        dista = as.dist(customDiff(a$DnaAdmixture))
+        distb = as.dist(customDiff(b$DnaAdmixture))
+        if (isTRUE(is.euclid(dista)) & isTRUE(is.euclid(distb))) {
+            return(RVdist.randtest(dista, distb, nrepet = nperms)$obs)
+        } else {
+            return(NA)
+        }
+    },
+    function(a, b, c) {
+        dista = as.dist(customDiff(a$DnaAdmixture))
+        distb = as.dist(customDiff(b$DnaAdmixture))
+        if (isTRUE(is.euclid(dista)) & isTRUE(is.euclid(distb))) {
+            pco1 = dudi.pco(dista, nf = 2, scannf = FALSE)
+            pco2 = dudi.pco(distb, nf = 2, scannf = FALSE)
+            return(coinertia(dudiX = pco1, dudiY = pco2, nf = 2, scannf = FALSE)$RV)
+        } else {
+            return(NA)
+        }
+    },
+    function(a, b, c) {
+        dista = as.dist(customDiff(a$DnaAdmixture))
+        distb = as.dist(customDiff(b$DnaAdmixture))
+        if (isTRUE(is.euclid(dista)) & isTRUE(is.euclid(distb))) {
+            pco1 = dudi.pco(dista, nf = 2, scannf = FALSE)
+            pco2 = dudi.pco(distb, nf = 2, scannf = FALSE)
+            return(procuste.randtest(pco1$tab, pco2$tab)$obs)
+        } else {
+            return(NA)
+        }
     }
+)
+
+pb = txtProgressBar(0, length(funs), style = 3)
+summaryResults = list()
+for (i in 1:length(funs)) {
+    df = matrix(ncol = length(names), nrow = length(names), dimnames = list(names, names))
+    for (j in 1:length(admix)) {
+        for (k in 1:length(admix)) {
+            df[j, k] = funs[[i]](admix[[j]], admix[[k]], coordinates)
+        }
+    }
+    setTxtProgressBar(pb, i)
+
+    summaryResults[[i]] = list(name = funNames[[i]], results = df)
 }
 
+print(summaryResults)
 
-#load data
-imports.admix = read.csv(variables.admixFile)
-imports.order = read.csv(variables.orderFile)[c('Island', 'order', 'longitude', 'latitude')]
-
-#checks
-randomSeeds = imports.admix['randomSeed']
-if (dim(randomSeeds)[1] / dim(unique(imports.admix['Island']))[1] != dim(unique(randomSeeds))[1]) {
-    stop('found a repeated random seed')
+rands = list(nrands)
+for (i in 1:nrands) {
+    rands[[i]] = list(DnaAdmixture = runif(length(admix[[1]]$DnaAdmixture)))
 }
+#nbattles = (nrands * (nrands - 1)) / 2
+nbattles = nrands ^ 2 - ((nrands * (nrands - 1)) / 2)
 
-randomSeeds = unlist(unique(randomSeeds))
-paramComb = aggregate(
-    .~randomSeed+startingDistributionFile+graphFile, imports.admix, FUN = mean
-)
-
-mantelV = merge(
-    imports.admix,
-    imports.order,
-    by = 'Island'
-)
-mantelP = dist1(matrix(cbind(imports.order$longitude, imports.order$latitude), ncol = 2))
-
-n = length(randomSeeds)
-n = n * (n-1) / 2
-df = data.frame(
-    Same = logical(n),
-    Mantel = double(n), Mantel2 = double(n),
-    SquaredDistDna = double(n), SquaredDistAutosome = double(n), SquaredDistXChr = double(n),
-    SquaredDistMito = double(n), SquaredDistYChr = double(n)
-)
+battles = matrix(nrow = nbattles, ncol = length(funs))
+colnames(battles) = funCodes
 k = 1
-pb = txtProgressBar(k, n, style = 3)
-for (i in 1:(length(randomSeeds)-1)) {
-    for (j in (i+1):length(randomSeeds)) {
-        df$Same[k] = all(
-            paramComb[paramComb$randomSeed == randomSeeds[i], variables.paramNames] ==
-            paramComb[paramComb$randomSeed == randomSeeds[j], variables.paramNames]
-        )
-
-        #partial mantel
-        set1 = mantelV[paramComb$randomSeed == randomSeeds[i], ]
-        set1 = set1[order(set1$order),]
-        set2 = mantelV[paramComb$randomSeed == randomSeeds[j], ]
-        set2 = set2[order(set2$order),]
-        mantelStat = mantel.partial(
-            dist(set1$DnaAdmixture),
-            dist(set2$DnaAdmixture),
-            mantelP,
-            permutations = 50
-        )
-        df$Mantel[k] = mantelStat$statistic
-
-        #mantel
-        #set1 = mantelV[paramComb$randomSeed == randomSeeds[i], ]
-        #set1 = set1[order(set1$order),]
-        #set2 = mantelV[paramComb$randomSeed == randomSeeds[j], ]
-        #set2 = set2[order(set2$order),]
-        mantelStat = mantel(
-            dist(set1$DnaAdmixture),
-            dist(set2$DnaAdmixture),
-            permutations = 50
-        )
-        df$Mantel2[k] = mantelStat$statistic
-
-        #squaredDist
-        sqd = (
-            imports.admix[paramComb$randomSeed == randomSeeds[i], variables.summaryNames] -
-            imports.admix[paramComb$randomSeed == randomSeeds[j], variables.summaryNames]
-        ) ^ 2
-        sqd = colSums(sqd)
-
-        df$SquaredDistDna[k] = sqd['DnaAdmixture']
-        df$SquaredDistAutosome[k] = sqd['AutosomeAdmixture']
-        df$SquaredDistXChr[k] = sqd['XChrAdmixture']
-        df$SquaredDistMito[k] = sqd['MitoAdmixture']
-        df$SquaredDistYChr[k] = sqd['YChrAdmixture']
+pb = txtProgressBar(k, nbattles, style = 3)
+for (i in 1:nrands) {
+    for (j in i:nrands) {
+        for (f in 1:length(funs)) {
+            battles[k, f] = funs[[f]](rands[[i]], rands[[j]], coordinates)
+        }
 
         setTxtProgressBar(pb, k)
-        k = k+1
+        k = k + 1
     }
 }
-print(summary(df[df$Same == TRUE,]))
-print(summary(df[df$Same == FALSE,]))
-png(paste0('evaluation-squaredDist-', variables.now, '.png'))
-plot(
-    df$Same - 0.1,
-    df$SquaredDistDna,
-    #SquaredDist ~ Same,
-    #data = df,
-    xlim = c(-0.2, 1.2),
-    col = 'blue', pch = '.'
-)
-points(
-    df$Same - 0.05,
-    df$SquaredDistAutosome,
-    #SquaredDist2 ~ Same,
-    #data = df,
-    col = 'green', pch = '.'
-)
-points(
-    df$Same,
-    df$SquaredDistXChr,
-    #SquaredDist3 ~ Same,
-    #data = df,
-    col = 'grey', pch = '.'
-)
-points(
-    df$Same + 0.05,
-    df$SquaredDistMito,
-    #SquaredDist3 ~ Same,
-    #data = df,
-    col = 'grey', pch = '.'
-)
-points(
-    df$Same + 0.1,
-    df$SquaredDistYChr,
-    #SquaredDist3 ~ Same,
-    #data = df,
-    col = 'grey', pch = '.'
-)
-graphics.off()
-png(paste0('evaluation-mantel-', variables.now, '.png'))
-plot(
-    df$Same - 0.05,
-    df$Mantel,
-    #Mantel ~ Same,
-    #data = df,
-    xlim = c(-0.2, 1.2),
-    col = 'red', pch = 1
-)
-points(
-    df$Same,
-    df$Mantel2,
-    #Mantel2 ~ Same,
-    #data = df,
-    col = 'yellow', pch = 2
-)
-graphics.off()
 
+
+battles.cor = cor(battles)
+customColors = function(x) {
+    return(hsv(ifelse(x > 0, 0.4, 1.0), abs(x), abs(x)))
+}
+battles.col = battles.cor
+for (i in 1:nrow(battles.cor)) {
+    for (j in 1:ncol(battles.cor)) {
+        battles.col[i, j] = customColors(battles.cor[i, j])
+    }
+}
+
+cpairs(
+    battles, panel.colors = battles.col,
+    pch = '.', gap = 0.5,
+    #ylim = 0:1, xlim = 0:1,
+    #upper.panel = panel.smooth,
+    lm = TRUE
+)

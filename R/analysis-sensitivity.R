@@ -11,10 +11,10 @@ p1 = p1 + geom_errorbar(
 )
 # color axis
 p1 = p1 + scale_color_discrete(
-    name = 'type of admixture',
+    name = 'type of admixture\n(No of markers)',
     labels = c(
-        'Whole DNA (52m)', 'Auto (25m)', 'X Chr (25m)',
-        'Mito (1m)', 'Y Chr (1m)'
+        'DNA (52)', 'Auto (25)', 'X Chr (25)',
+        'Mito (1)', 'Y Chr (1)'
     )
 )
 # x axis
@@ -24,7 +24,10 @@ p1 = p1 + scale_y_continuous(name = 'standard deviation of admixture')
 # theme
 p1 = p1 + theme(text = element_text(size = variables$textSize))
 # title
-p1 = p1 + ggtitle(paste('Sensitivity of admixture to', changing[1L], 'by zone'))
+p1 = p1 + ggtitle(paste(
+    'Sensitivity of admixture to',
+    changing[1L], 'by zone'
+))
 
 if (variables$debug) {
     print(p1)
@@ -33,7 +36,10 @@ if (variables$debug) {
 ##### plot counts
 # histogram
 p2 = ggplot(summary$counts$df, aes_string(x = changing[1L], y = 'count'))
-p2 = p2 + geom_bar(fill = 'white', colour = 'black', stat='identity', width = 0.5)
+p2 = p2 + geom_bar(
+    fill = 'white', colour = 'black',
+    stat='identity', width = 0.5
+)
 # x axis
 p2 = p2 + scale_x_discrete(name = changing[1L])
 # y axis
@@ -47,23 +53,25 @@ p2 = p2 + scale_y_continuous(
 # theme
 p2 = p2 + theme(text = element_text(size = variables$textSize))
 # title
-p2 = p2 + ggtitle(paste('Count of simulations for every different', args$changing[1L]))
+p2 = p2 + ggtitle(paste(
+    'Count of simulations for every different',
+    args$changing[1L]
+))
 
 if (variables$debug) {
     print(p2)
 }
 
 if (!variables$debug) {
-    png(
-        paste0(
-            variables$now,
-            '-sensitivity-',
-            changing[1L],
-            '.png'),
-        width = 1240L, height = 1754L
-    )
-    grid.arrange(p1, p2, nrow = 2L)
-    graphics.off()
+    filename = paste0(variables$now, '-sensitivity-', changing[1L])
+    for (ext in c('png', 'pdf')) {
+        ggsave(
+            plot = arrangeGrob(p1, p2, nrow = 2L),
+            filename = paste(filename, ext, sep = '.'),
+            # portrait
+            width = variables$short, height = variables$long, units = 'mm'
+        )
+    }
 }
 
 ##### plot comparisons
@@ -85,12 +93,23 @@ p3 = p3 + scale_fill_discrete(labels = c('Auto', 'X-Chr'))
 # theme
 p3 = p3 + theme(text = element_text(size = variables$textSize))
 # title
-p3 = p3 + ggtitle(paste('Mean of squared distances of admixtures for every different', changing[1L]))
+p3 = p3 + ggtitle(paste(
+    'Mean of squared distances of admixtures for every different',
+    changing[1L]
+))
 # compare cases
 p3 = p3 + geom_hline(
-    aes_string(yintercept = 'value', colour = 'admixture', linetype = 'reference_case'),
+    aes_string(
+        yintercept = 'value', colour = 'admixture',
+        linetype = 'reference_case'
+    ),
     variables$cases[variables$cases$comparison == 'MSD', ],
+    labels = clean(variables$cases$reference_case),
     show_guide = TRUE
+)
+p3 = p3 + scale_linetype_discrete(
+    labels = clean(levels(variables$cases$reference_case)),
+    name = 'reference'
 )
 p3 = p3 + guides(colour = FALSE)
 
@@ -108,7 +127,7 @@ p4 = p4 + geom_boxplot(notch = TRUE)
 p4 = p4 + scale_x_discrete(name = changing[1L])
 # y axis
 p4 = p4 + scale_y_continuous(
-    name = 'Partial Mantel\ncorrelation', limits = c(-1L, 1L),
+    name = 'Partial Mantel correlation', limits = c(-1L, 1L),
     breaks = seq(-1L, 1L, by = 0.2)
 )
 # fill axis
@@ -116,45 +135,39 @@ p4 = p4 + scale_fill_discrete(labels = c('Auto', 'X-Chr'))
 # theme
 p4 = p4 + theme(text = element_text(size = variables$textSize))
 # title
-p4 = p4 + ggtitle(paste('Partial Mantel correlation test for every different', changing[1L]))
+p4 = p4 + ggtitle(paste(
+    'Partial Mantel correlation test for every different',
+    changing[1L]
+))
 # compare cases
 p4 = p4 + geom_hline(
-    aes_string(yintercept = 'value', colour = 'admixture', linetype = 'reference_case'),
+    aes_string(
+        yintercept = 'value', colour = 'admixture',
+        linetype = 'reference_case'
+    ),
     variables$cases[variables$cases$comparison == 'cor', ],
     show_guide = TRUE
 )
+p4 = p4 + scale_linetype_discrete(
+    labels = clean(levels(variables$cases$reference_case)),
+    name = 'reference'
+)
 p4 = p4 + guides(colour = FALSE)
-
-# p4 = p4 + geom_hline(aes(
-#     yintercept = c(
-#         0.6880700, 0.7416792,# worst case
-#         1.0, 1.0# opposite case
-#     ), colour = c(
-#         rep(c('red', 'blue'), 2)
-#     ), linetype = c(
-#         rep(c('dotdash', 'dotted'), each = 2)
-#     )
-# ), show_guide = TRUE)
-#p4 = p4 + scale_linetype_manual(name = 'line', values = c(worst = 'dotdash', opposite = 'dotted'))
-# p4 = p4 + guides(
-#     linetype = guide_legend('line', override.aes = list(linetype = 15, c('dotdash', 'dotted')))
-# )
 
 if (variables$debug) {
     print(p4)
 }
 
 if (!variables$debug) {
-    png(
-        paste0(
-            variables$now,
-            '-comparisons-',
-            changing[1L],
-            '.png'),
-        width = 1240L, height = 1754L
-    )
-    grid.arrange(p3, p4, nrow = 2L)
-    graphics.off()
+    filename = paste0(variables$now, '-comparisons-', changing[1L])
+    for (ext in c('png', 'pdf')) {
+        ggsave(
+            plot = suppressMessages(arrangeGrob(p3, p4, nrow = 2L)),
+            filename = paste(filename, ext, sep = '.'),
+            # portrait
+            width = variables$short, height = variables$long, units = 'mm'
+        )
+    }
 }
 
 ##### X Chromosome - Autosome
@@ -170,7 +183,9 @@ p5 = ggplot(
     )
 )
 # points
-p5 = p5 + geom_point(aes_string(shape = 'Island'), position = pd, size = 5L)
+p5 = p5 + geom_point(
+    aes_string(shape = 'Island'),
+    position = pd, size = variables$pointSize)
 if (changing[1L] %in% variables$continuousParams) {
     p5 = p5 + geom_line()
 }
@@ -199,7 +214,8 @@ p5 = p5 + scale_shape_manual(values = c(rep(15L:18L, 5L), 15L))
 p5 = p5 + theme(text = element_text(size = variables$textSize))
 # title
 p5 = p5 + ggtitle(paste(
-    'Difference of admixture between XChr and Autosome in relation to changes in',
+    'Difference of admixture between XChr and Autosome',
+    'in relation to changes in',
     changing[1L]
 ))
 
@@ -208,14 +224,16 @@ if (variables$debug) {
 }
 
 if (!variables$debug) {
-    png(
-        paste0(
-            variables$now,
-            '-admixDiff-',
-            changing[1L],
-            '.png'),
-        width = 1754L, height = 1240L
-    )
-    print(p5)
-    graphics.off()
+    filename = paste0(variables$now, '-admixDiff-', changing[1L])
+    for (ext in c('png', 'pdf')) {
+        ggsave(
+            plot = p5,
+            filename = paste(filename, ext, sep = '.'),
+            # landscape
+            width = variables$long, height = variables$short, units = 'mm'
+        )
+    }
 }
+# annoying bug, arrangeGrob always opens a Rplots.pdf file
+# removes it
+unlink('Rplots.pdf')

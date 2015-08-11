@@ -4,7 +4,9 @@
 tryCatch({
     # look for common.R in the same folder than the script
     source(paste0(
-        dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+        dirname(sub('--file=','',commandArgs(trailingOnly=F)[
+            grep('--file=',commandArgs(trailingOnly=F))
+        ])),
         '/common.R'
     ))
 }, warning = function(a) {
@@ -16,6 +18,7 @@ tryCatch({
 #variables$debug = TRUE
 
 if (variables$debug) {
+    # change parameters here if debugging
     args = list(
         admix = '../../isea_new_new_new/isea/output/admixturebynode.2015.Jun.09.01_50_10.txt',
         batch_param = '',
@@ -34,7 +37,10 @@ if (variables$debug) {
     )
     parser$add_argument(
         'batch_param', type = 'character', nargs = '?', default = '',
-        help = 'path to the batch_param file, tries to find it in the same folder than admix file if not provided'
+        help = paste(
+            'path to the batch_param file, tries to find it',
+            'in the same folder than admix file if not provided'
+        )
     )
     parser$add_argument(
         'output', type = 'character', nargs = '?', default = '',
@@ -42,7 +48,10 @@ if (variables$debug) {
     )
     parser$add_argument(
         '--progress', '-p', action='store_true',
-        help = 'display progress bar, to stdout if not used by output, otherwise to stderr'
+        help = paste(
+            'display progress bar, to stdout if not used by output,',
+            'otherwise to stderr'
+        )
     )
     parser$add_argument(
         '--failed', '-f', action='store_true',
@@ -66,14 +75,18 @@ if (args$progress) {
     )
 }
 
+# opens up the connections to the input files
 admix = new.env()
 admix$conn = file(args$admix, open = 'r')
 param = new.env()
 param$conn = file(args$batch_param, open = 'r')
 
-admix$header = strsplit(gsub('"', '', readLines(admix$conn, 1L)), ',')[[1]]
-param$header = strsplit(gsub('"', '', readLines(param$conn, 1L)), ',')[[1]]
+# extracts the header of the input files
+admix$header = strsplit(gsub('"', '', readLines(admix$conn, 1L)), ',')[[1L]]
+param$header = strsplit(gsub('"', '', readLines(param$conn, 1L)), ',')[[1L]]
 
+# retrieves the types of the columns according to the variable name
+# types hardcoded in common.R
 admix$csvTypes = sapply(
     admix$header,
     function(x) variables$types[[x]],
@@ -85,44 +98,39 @@ param$csvTypes = sapply(
     USE.NAMES = FALSE
 )
 
-#variables$hasDemeSizeInfo = grepl('DemeSize', admix$header)
-
+# subset of useful variables
 admix$csvSubset = c('run', 'Label', variables$summaryNames, 'DemeSize')
-#if (variables$hasDemeSizeInfo) {
-#    admix$csvTypes = c(admix$csvTypes, 'integer')
-#    admix$csvSubset = c(admix$csvSubset, 'DemeSize')
-#}
 param$csvSubset = c('run', 'randomSeed', variables$paramNames)
 
 variables$firstLoop = TRUE
 
 if (args$failed) {
+    # vector of failed runs
     failedRuns = c()
 }
 if (args$progress) {
+    # starts the progress bar
     pb = txtProgressBar(
-        0, variables$nSimulations, style = 3,
+        0L, variables$nSimulations, style = 3L,
         file = if(args$output == '') stderr() else ''
     )
 }
-counter = 0
+counter = 0L
 
 # loops on every simulation
 repeat {
-    counter = counter + 1
+    counter = counter + 1L
     if (args$progress) {
+        # updates the progress bar
         setTxtProgressBar(pb, counter)
     }
 
     # reads the corresponding lines
-    admix$buffer = readLines(admix$conn, 118L)
+    admix$buffer = readLines(admix$conn, variables$nDemes)
     param$buffer = readLines(param$conn, 1L)
 
     # exits the loop if one of the files has no more line to read
     if (length(admix$buffer) == 0L | length(param$buffer) == 0L) {
-        if (length(admix$buffer) != length(param$buffer)) {
-            warning('One of the files ended before the other')
-        }
         close(admix$conn)
         close(param$conn)
         break
@@ -140,39 +148,67 @@ repeat {
 
     # adds island information from label
     admix$df['Island'] = lapply(
+        # from the Label
         admix$df['Label'],
+        # extracts the prefix (removes everything starting at the first digit)
         function(x) sub('\\d+(_src)?', '', x)
     )
 
     if (variables$firstLoop) {
-        # gets a list of islands (only once)
+        # gets a list of islands (only once, at the first run)
         variables$islands = unique(admix$df$Island)
     }
-    # checks if this simulation has failed
-    failed = hasFailed(
-        admix$df,
-        popRatio = variables$toleratedPopRatio,
-        deadDemes = variables$toleratedDeadDemes,
-        islands = variables$islands,
-        summaryNames = variables$summaryNames
-    )
+    # let's check if this simulation has failed
+
+    # maximum population in the whole simulation
+    max = max(admix$df$DemeSize)
+    # minimum corresponding size for a deme to be considered alive
+    minToleratedSize = variables$toleratedPopRatio * max
+    failed = FALSE
+    for (i in variables$islands) {
+        # vector of booleans, TRUE for 'empty' demes
+        empty = (
+            admix$df[admix$df$Island == i, 'DemeSize'] < minToleratedSize
+        )
+        # if too many 'empty' demes on any island
+        if(length(empty) * variables$toleratedDeadDemes <= sum(empty)) {
+            # this run has failed
+            failed = TRUE
+            break
+        }
+    }
     if (failed) {
         if (args$failed) {
-            failedRuns = c(failedRuns, admix$df$run[1])
+            # adds this run to the list of failed runs
+            failedRuns = c(failedRuns, admix$df$run[1L])
         }
         # jumps to the next iteration of the loop without doing further work
         next
     }
+    # arrived to this point, this run has NOT failed
 
-    #
-    #if (!variables$hasDemeSizeInfo) {
-    #    admix$df$DemeSize = 1
-    #}
-    aggregated = demesToIslands(
-        admix$df,
-        summaryNames = variables$summaryNames,
-        islands = variables$islands
-    )
+    if (variables$firstLoop) {
+        # creates an 'aggregated' data frame once to be re-used for every run
+        aggregated = data.frame(
+            run = admix$df$run[1L],
+            Island = variables$islands
+        )
+        aggregated[, variables$summaryNames] = 0.0
+    } else {
+        aggregated$run = admix$df$run[1L]
+    }
+    # fills the 'aggregated' object for every island with data from demes
+    for (i in 1:length(variables$islands)) {
+        # gets the demes corresponding to that island
+        demesOfIsland = admix$df[
+            admix$df$Island == variables$islands[i],
+            variables$summaryNames
+        ]
+        # fills the mean values for every summary value
+        aggregated[i, variables$summaryNames] = colMeans(
+            demesOfIsland, na.rm = TRUE
+        )
+    }
 
     # gets parameters for this simulation
     csvConn = textConnection(param$buffer)
@@ -196,26 +232,39 @@ repeat {
         sep = ',',
         file = args$output,
         row.names = FALSE,
+        # writes the header only the first time
         col.names = variables$firstLoop
     )
 
     variables$firstLoop = FALSE
 }
+# end of the main loop
+
 if (args$progress) {
+    # closes the progress bar
     close(pb)
+}
+if (length(admix$buffer) != length(param$buffer)) {
+    # If the batch_param file has been volontarily trimmed,
+    # there's nothing to worry about
+    warning('One of the files ended before the other')
 }
 
 if (args$failed) {
+    # displays number of failed runs and list of failed runs to stderr
     write(
         paste0(
-            length(failedRuns),
-            ' Failed runs out of ',
-            counter - 1,
-            ' (',
-            sprintf('%3.2f', round(length(failedRuns) * 100 / counter, digits = 2)),
-            '%)\n',
-            paste0(failedRuns, collapse = ', '),
-            '\n'
+            # number of failed, and total
+            length(failedRuns), ' Failed runs out of ', counter - 1L,
+            # percentage of failed
+            ' (', sprintf(
+                # format
+                '%3.2f',
+                # value in percents
+                round(length(failedRuns) * 100L / counter, digits = 2L)
+            ), '%)\n',
+            # list of failed runs
+            paste0(failedRuns, collapse = ', '), '\n'
         ),
         stderr()
     )

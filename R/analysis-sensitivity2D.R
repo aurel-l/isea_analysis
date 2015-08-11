@@ -11,10 +11,10 @@ p1 = p1 + geom_errorbar(
 )
 # color axis
 p1 = p1 + scale_color_discrete(
-    name = 'type of admixture',
+    name = 'type of admixture\n(No of markers)',
     labels = c(
-        'Whole DNA (52m)', 'Auto (25m)', 'X Chr (25m)',
-        'Mito (1m)', 'Y Chr (1m)'
+        'DNA (52)', 'Auto (25)', 'X Chr (25)',
+        'Mito (1)', 'Y Chr (1)'
     )
 )
 # x axis
@@ -61,14 +61,11 @@ p2 = p2 + scale_fill_gradient(
 )
 # x axis
 p2 = p2 + scale_x_discrete(
-    name = changing[1], expand = c(0L, 0L)#,
-    #limits = c(min(summary$counts$df[, changing[1]]), max(summary$counts$df[, changing[1]])),
-    #labels = clean(levels(summary$counts$df[, changing[1]]))
+    name = changing[1], expand = c(0L, 0L)
 )
 # y axis
 p2 = p2 + scale_y_discrete(
-    name = changing[2], expand = c(0L, 0L)#,
-    #labels = clean(levels(summary$counts$df[, changing[2]]))
+    name = changing[2], expand = c(0L, 0L)
 )
 # theme
 p2 = p2 + theme(text = element_text(size = variables$textSize))
@@ -84,18 +81,14 @@ if (!variables$debug) {
         variables$now, '-sensitivity-',
         changing[1], '-', changing[2L]
     )
-    png(
-        paste0(filename, '.png'),
-        width = 1240L, height = 1754L
-    )
-    grid.arrange(p1, p2, nrow = 2L)
-    graphics.off()
-    postscript(
-        paste0(filename, '.ps'),
-        width = 12L, height = 17L
-    )
-    grid.arrange(p1, p2, nrow = 2L)
-    graphics.off()
+    for (ext in c('png', 'pdf')) {
+        ggsave(
+            plot = arrangeGrob(p1, p2, nrow = 2L),
+            filename = paste(filename, ext, sep = '.'),
+            # portrait
+            width = variables$short, height = variables$long, units = 'mm'
+        )
+    }
 }
 
 ##### plot comparisons
@@ -119,14 +112,11 @@ p3 = p3 + scale_fill_gradientn(
 )
 # x axis
 p3 = p3 + scale_x_discrete(
-    name = changing[1], expand = c(0L, 0L)#,
-    #limits = c(min(summary$counts$df[, changing[1]]), max(summary$counts$df[, changing[1]])),
-    #labels = clean(levels(summary$counts$df[, changing[1]]))
+    name = changing[1], expand = c(0L, 0L)
 )
 # y axis
 p3 = p3 + scale_y_discrete(
-    name = changing[2], expand = c(0L, 0L)#,
-    #labels = clean(levels(summary$counts$df[, changing[2]]))
+    name = changing[2], expand = c(0L, 0L)
 )
 # theme
 p3 = p3 + theme(text = element_text(size = variables$textSize))
@@ -146,7 +136,7 @@ p4 = ggplot(
     aes_string(
         x = changing[1L],
         y = changing[2L],
-        fill = 'sd'
+        fill = 'stddev'
     )
 )
 p4 = p4 + geom_raster()
@@ -158,14 +148,11 @@ p4 = p4 + scale_fill_gradient(
 )
 # x axis
 p4 = p4 + scale_x_discrete(
-    name = changing[1], expand = c(0L, 0L)#,
-    #limits = c(min(summary$counts$df[, changing[1]]), max(summary$counts$df[, changing[1]])),
-    #labels = clean(levels(summary$counts$df[, changing[1]]))
+    name = changing[1], expand = c(0L, 0L)
 )
 # y axis
 p4 = p4 + scale_y_discrete(
-    name = changing[2], expand = c(0L, 0L)#,
-    #labels = clean(levels(summary$counts$df[, changing[2]]))
+    name = changing[2], expand = c(0L, 0L)
 )
 # theme
 p4 = p4 + theme(text = element_text(size = variables$textSize))
@@ -199,14 +186,11 @@ p5 = p5 + scale_fill_gradientn(
 )
 # x axis
 p5 = p5 + scale_x_discrete(
-    name = changing[1], expand = c(0L, 0L)#,
-    #limits = c(min(summary$counts$df[, changing[1]]), max(summary$counts$df[, changing[1]])),
-    #labels = clean(levels(summary$counts$df[, changing[1]]))
+    name = changing[1], expand = c(0L, 0L)
 )
 # y axis
 p5 = p5 + scale_y_discrete(
-    name = changing[2], expand = c(0L, 0L)#,
-    #labels = clean(levels(summary$counts$df[, changing[2]]))
+    name = changing[2], expand = c(0L, 0L)
 )
 # theme
 p5 = p5 + theme(text = element_text(size = variables$textSize))
@@ -226,7 +210,7 @@ p6 = ggplot(
     aes_string(
         x = changing[1L],
         y = changing[2L],
-        fill = 'sd'
+        fill = 'stddev'
     )
 )
 p6 = p6 + geom_raster()
@@ -238,14 +222,11 @@ p6 = p6 + scale_fill_gradient(
 )
 # x axis
 p6 = p6 + scale_x_discrete(
-    name = changing[1], expand = c(0L, 0L)#,
-    #limits = c(min(summary$counts$df[, changing[1]]), max(summary$counts$df[, changing[1]])),
-    #labels = clean(levels(summary$counts$df[, changing[1]]))
+    name = changing[1], expand = c(0L, 0L)
 )
 # y axis
 p6 = p6 + scale_y_discrete(
-    name = changing[2], expand = c(0L, 0L)#,
-    #labels = clean(levels(summary$counts$df[, changing[2]]))
+    name = changing[2], expand = c(0L, 0L)
 )
 # theme
 p6 = p6 + theme(text = element_text(size = variables$textSize))
@@ -264,17 +245,15 @@ if (!variables$debug) {
         variables$now, '-comparisons-',
         changing[1L], '-', changing[2L]
     )
-    png(
-        paste0(filename, '.png'),
-        width = 1240L, height = 1754L
-    )
-    grid.arrange(p3, p4, p5, p6, nrow = 4L)
-    graphics.off()
-    svg(
-        paste0(filename, '.svg'),
-        width = 12L, height = 17L,
-        onefile = TRUE
-    )
-    grid.arrange(p3, p4, p5, p6, nrow = 4L)
-    graphics.off()
+    for (ext in c('png', 'pdf')) {
+        ggsave(
+            plot = arrangeGrob(p3, p4, p5, p6, nrow = 4L),
+            filename = paste(filename, ext, sep = '.'),
+            # portrait
+            width = variables$short, height = variables$long, units = 'mm'
+        )
+    }
 }
+# annoying bug, arrangeGrob always opens a Rplots.pdf file
+# removes it
+unlink('Rplots.pdf')

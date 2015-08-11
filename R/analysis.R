@@ -4,18 +4,24 @@
 tryCatch({
     # look for common.R in the same folder than the script
     source(paste0(
-        dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+        dirname(sub('--file=','',commandArgs(trailingOnly=F)[
+            grep('--file=',commandArgs(trailingOnly=F))
+        ])),
         '/common.R'
     ))
 }, warning = function(a) {
     # when not run from CLI, assumes common.R is in the working directory
     source('common.R')
 })
+suppressMessages(library(ggplot2))
+suppressMessages(library(gridExtra))
+suppressMessages(library(vegan))# !high memory use! (needed for mantel.partial)
 
 # variables overwrite
 #variables$debug = TRUE
 
 if (variables$debug) {
+    # change parameters here if debugging
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
@@ -27,14 +33,15 @@ if (variables$debug) {
 } else {
     #CLI arguments
     parser = ArgumentParser(
-        description = 'Analyse the sensitivity of a set of parameters with one changing parameter'
+        description = 'Analyse of admixture files'
     )
 
     parser$add_argument(
         'order', type = 'character', help = 'path to the order file'
     )
     parser$add_argument(
-        'real', type = 'character', help = 'path to the real admixture data file'
+        'real', type = 'character',
+        help = 'path to the real admixture data file'
     )
     parser$add_argument(
         'admix', type = 'character', nargs = '?', default = 'stdin',
@@ -57,7 +64,7 @@ if (variables$debug) {
 }
 
 if (variables$debug) {
-    cat('executing in debug mode, ignoring any command line argument\n')
+    cat('executing in DEBUG mode, ignoring any command line argument\n')
 }
 
 # environment to store incoming data
@@ -165,7 +172,7 @@ repeat {
 
     # raw content of the input file, chunk of 21 lines
     # corresponds to one simulation, assumes the input is sorted by run
-    data$buffer = readLines(data$conn, 21L)
+    data$buffer = readLines(data$conn, variables$nIslands)
 
     # exits the loop if the file has no more line to read
     if (length(data$buffer) == 0L) {
@@ -206,6 +213,7 @@ repeat {
 
     simuParams = data$df[1, variables$paramNames]
 
+    # COMMENT TODO
     if (!args$ABC) {
         if (nrow(summary$counts$df) == 0L) {
             summary$counts$df = simuParams
@@ -217,8 +225,9 @@ repeat {
         } else {
             found = FALSE
             for (i in 1L:nrow(summary$counts$df)) {
-                if (all(summary$counts$df[i, variables$paramNames] == simuParams)) {
-                    summary$counts$df$count[i] = summary$counts$df$count[i] + 1L
+                test = summary$counts$df[i, variables$paramNames] == simuParams
+                if (all(test)) {
+                    summary$counts$df$count[i] = summary$counts$df$count[i] + 1
                     found = TRUE
                 }
             }
@@ -227,7 +236,8 @@ repeat {
                 colnames(tmp) = c(colnames(simuParams), 'count')
                 summary$counts$df = rbind(summary$counts$df, tmp)
                 for (p in variables$paramNames) {
-                    summary$counts$changing[p] = length(unique(summary$counts$df[, p]))
+                    summary$counts$changing[p] =
+                        length(unique(summary$counts$df[, p]))
                 }
             }
         }
@@ -235,7 +245,18 @@ repeat {
         tmp = sum(summary$counts$changing != 1)
         if (loop$changing != tmp) {
             loop$changing = tmp
-            loop$type = analysisType(loop$changing)
+            if (loop$changing == 0) {
+                loop$type = 'stability'
+            } else if (loop$changing == 1) {
+                loop$type = 'sensitivity'
+            } else if (loop$changing == 2) {
+                loop$type = 'sensitivity'
+            } else {
+                stop(paste(
+                    'cannot perform analysis on', changing,
+                    'changing parameters'
+                ))
+            }
         }
     }
 
@@ -309,6 +330,8 @@ repeat {
         flush.console()
     }
 }
+# end of main loop
+
 if (args$verbose) {
     # new line so that the next print won't be added after the progress info
     cat('\n')
@@ -316,11 +339,11 @@ if (args$verbose) {
 }
 
 if (args$repeated) {
-    # count the occurences of every
+    # count the occurences of every randomSeed
     tab = table(randomSeeds)
     # extract any repeated randomSeed
     repeated = tab[tab != 1]
-    # if the extract as a length, with have repeated seeds
+    # if the vector of repeated randomSeeds has values
     if (length(repeated)) {
         # display them
         cat('repeated randomSeeds:\n')
@@ -329,19 +352,41 @@ if (args$repeated) {
     }
 }
 
+# only for grid searches
 if (!args$ABC) {
-    # parameter sweep information
-    XMLFile = toXMLFile(
-        subset(summary$counts$df, select = -count),
-        prod(summary$counts$changing)
-    )
+    # aggregates parameter sweep information...
+
+    suppressMessages(library(XML))
+    # ...in this XMLTree
+    XMLTree = newXMLNode('sweep')
+    # loops on every parameter
+    for (p in colnames(summary$counts$df)) {
+        if (p == 'count') {
+            # this column doesn't need to be in the XML (not a parameter)
+            next
+        }
+        uniqueValues = sort(unique(summary$counts$df[, p]))
+        # adds a node in the XML tree
+        newXMLNode(
+            'parameter',
+            attrs = c(
+                'name' = p,
+                'n' = length(uniqueValues),
+                'values' = toString(uniqueValues)
+            ),
+            parent = XMLTree
+        )
+    }
+    # attribute on the root (number of distinct sets of parameters)
+    addAttributes(XMLTree, sets = prod(summary$counts$changing))
+
     # if in debug mode
     if (variables$debug) {
-        # only display sweep information
-        print(XMLFile)
+        # only displays sweep information
+        print(XMLTree)
     } else {
-        # otherwise, only save it in a file
-        invisible(saveXML(XMLFile, paste0(variables$now, '-parameters.xml')))
+        # otherwise, only saves it in a file
+        invisible(saveXML(XMLTree, paste0(variables$now, '-parameters.xml')))
     }
 }
 
@@ -361,14 +406,18 @@ if (args$verbose) {
     cat('now performing', if (args$ABC) 'ABC' else loop$type, 'analysis\n')
 }
 
+# prepares the data for the visualisation, according to the type of analysis
 if (args$ABC) {
     sourced = 'analysis-ABC.R'
 } else {
+    # grid search
     maxCount = max(summary$counts$df$count)
     if (loop$type == 'stability') {
+        # stability
         sourced = 'analysis-stability.R'
         changing = c()
     } else {
+        # sensitivity
         changing = names(
             summary$counts$changing[order(-summary$counts$changing)]
         )[1:loop$changing]
@@ -377,6 +426,7 @@ if (args$ABC) {
             summary$comp$all[, p] = factor(summary$comp$all[, p])
             summary$diff$all[, p] = factor(summary$diff$all[, p])
         }
+        # standard deviation among all of the data
         summary$sensit$aggr = aggregate(
             . ~ Island + variable,
             data = summary$sensit$all,
@@ -389,15 +439,24 @@ if (args$ABC) {
         }
     }
 
-    summary$comp$all = summary$comp$all[, c(changing, 'admixture', 'comparison', 'value')]
+    # drops the unnecessary columns
+    summary$comp$all = summary$comp$all[
+        ,
+        c(changing, 'admixture', 'comparison', 'value')
+    ]
     summary$diff$all = summary$diff$all[, c(changing, 'Island', 'diffXAuto')]
+
     if (loop$changing == 2) {
+        # 2d parameter sweep
+        # comparisons, mean value (first heat-maps)
         summary$comp$aggr = aggregate(
             value ~ .,
             data = summary$comp$all,
             FUN = mean
         )
-        summary$comp$aggr$sd = aggregate(
+        # comparisons, standard deviation value (last heat-maps)
+        # value added as a 'stddev' column on the previous 'aggr' data frame
+        summary$comp$aggr$stddev = aggregate(
             value ~ .,
             data = summary$comp$all,
             FUN = sd
@@ -406,11 +465,15 @@ if (args$ABC) {
             summary$comp$aggr[, p] = factor(summary$comp$aggr[, p])
         }
     } else if(loop$changing == 1) {
+        # 1d parameter sweep
+        # X - Auto, mean value (dot in the plot)
         summary$diff$aggr = aggregate(
             as.formula(paste('diffXAuto ~ Island +', changing)),
             data = summary$diff$all,
             FUN = mean
         )
+        # X - Auto, standard deviation value (error bar in the plot)
+        # value added as a 'stddev' column on the previous 'aggr' data frame
         summary$diff$aggr$stddev = aggregate(
             as.formula(paste('diffXAuto ~ Island +', changing)),
             data = summary$diff$all,
@@ -419,11 +482,13 @@ if (args$ABC) {
     }
 }
 
-# source next analysis script
+# source next analysis script that does only the visualisation
 tryCatch({
     # look for script in the same folder than the current script
     source(paste0(
-        dirname(sub('--file=','',commandArgs(trailingOnly=F)[grep('--file=',commandArgs(trailingOnly=F))])),
+        dirname(sub('--file=','',commandArgs(trailingOnly=F)[
+            grep('--file=',commandArgs(trailingOnly=F))
+        ])),
         paste0('/', sourced)
     ))
 }, warning = function(a) {

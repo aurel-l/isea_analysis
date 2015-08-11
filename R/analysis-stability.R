@@ -36,15 +36,18 @@ if (variables$debug) {
     print(p1)
 }
 if (!variables$debug) {
-    png(
-        paste0(variables$now, '-stability.png'),
-        width = 1754L, height = 1240L
-    )
-    print(p1)
-    graphics.off()
+    filename = paste0(variables$now, '-stability.png')
+    for (ext in c('png', 'pdf')) {
+        ggsave(
+            plot = p1,
+            filename = paste(filename, ext, sep = '.'),
+            # landscape
+            width = variables$long, height = variables$short, units = 'mm'
+        )
+    }
 }
 
-##### admix gradient plot
+##### admix gradient plot (long chair)
 summary$sensit$aggr = aggregate(
     . ~ Island + variable,
     data = summary$sensit$all,
@@ -60,7 +63,7 @@ summary$sensit$aggr$stddev = aggregate(
     FUN = sd
 )$value
 pd = position_dodge(0.2)
-# boxplots
+# plot
 p2 = ggplot(
     summary$sensit$aggr,
     aes_string(
@@ -79,7 +82,10 @@ p2 = p2 + scale_shape_manual(values = c(rep(15L:18L, 5L), 15L))
 # x axis
 p2 = p2 + scale_x_discrete(name = 'admixture type')
 # y axis
-p2 = p2 + scale_y_continuous(name = 'admixture value', breaks = seq(0L, 1L, by = 0.1))
+p2 = p2 + scale_y_continuous(
+    name = 'admixture value',
+    breaks = seq(0L, 1L, by = 0.1)
+)
 # theme
 p2 = p2 + theme(text = element_text(size = variables$textSize))
 # title
@@ -91,10 +97,13 @@ if (variables$debug) {
     print(p2)
 }
 if (!variables$debug) {
-    png(
-        paste0(variables$now, '-stability-admixGradient.png'),
-        width = 1754L, height = 1240L
-    )
-    print(p2)
-    graphics.off()
+    filename = paste0(variables$now, '-stability-admixGradient.png')
+    for (ext in c('png', 'pdf')) {
+        ggsave(
+            plot = p2,
+            filename = paste(filename, ext, sep = '.'),
+            # landscape
+            width = variables$long, height = variables$short, units = 'mm'
+        )
+    }
 }
