@@ -25,8 +25,8 @@ variables$summaryNames = c(
     )
 variables$continuousParams = c(
         'migrationProb', 'poissonMean', 'marriageThres',
-        'growthRate', 'initialDemeAgentNumber'#,
-        #'poissonMeanRatio', 'migrationProbRatio'
+        'growthRate', 'initialDemeAgentNumber',
+        'poissonMeanRatio', 'migrationProbRatio'
     )
 variables$discreteParams = c(
         'startingDistributionFile', 'graphFile'
@@ -34,9 +34,9 @@ variables$discreteParams = c(
 variables$orderedAdmixtures = c(
     'MitoAdmixture', 'XChrAdmixture', 'AutosomeAdmixture', 'YChrAdmixture'
 )
-variables$ABCsummary = c(
-    'Autosome_MSD', 'XChr_MSD', 'Autosome_cor', 'XChr_cor'
-)
+variables$ABC_MSD = c('Autosome_MSD', 'XChr_MSD')
+variables$ABC_cor = c('Autosome_cor', 'XChr_cor')
+
 variables$nDemes = 118L
 variables$nIslands = 21L
 
@@ -56,6 +56,8 @@ variables$now = strftime(Sys.time(), '%Y_%m_%d_%H_%M_%S')
 
 # not to be changed! change continuousParams or discreteParams if need be
 variables$paramNames = c(variables$continuousParams, variables$discreteParams)
+# not to be changed! change ABC_MSD or ABC_cor if need be
+variables$ABCsummary = c(variables$ABC_MSD, variables$ABC_cor)
 
 # add column types here
 # used for optimisations, required

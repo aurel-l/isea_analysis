@@ -32,10 +32,11 @@ var = {
     'db':     config.get('db', 'repast'),
     # other defaults
     'defaults': [
-        'batch_param.run', 'batch_param.date', 'migrationProb',
+        'batch_paramRatio.run', 'batch_paramRatio.date', 'migrationProb',
         'startingDistributionFile', 'modelVersion', 'randomSeed',
         'poissonMean', 'initialDemeAgentNumber', 'graphFile', 'growthRate',
-        'marriageThres', 'Island', 'DnaAdmixture', 'AutosomeAdmixture',
+        'marriageThres', 'migrationProbRatio', 'poissonMeanRatio',
+        'Island', 'DnaAdmixture', 'AutosomeAdmixture',
         'XChrAdmixture', 'YChrAdmixture', 'MitoAdmixture'
     ]
 }
@@ -75,10 +76,10 @@ else:
     # fields
     args.query += ', '.join(var['defaults'])
     # joining tables
-    args.query += ' FROM batch_param INNER JOIN admixtureByNode'
+    args.query += ' FROM batch_paramRatio INNER JOIN admixtureByNodeRatio'
     # joining fields
-    args.query += ' ON batch_param.date = admixtureByNode.date'
-    args.query += ' AND batch_param.run = admixtureByNode.run'
+    args.query += ' ON batch_paramRatio.date = admixtureByNodeRatio.date'
+    args.query += ' AND batch_paramRatio.run = admixtureByNodeRatio.run'
 
 # if conditions provided
 if args.conditions:
@@ -87,7 +88,7 @@ if args.conditions:
 
 # adds to the query the ordering of rows by date and run,
 # so that rows from the same simulation are together (important!)
-args.query += ' ORDER BY batch_param.date, batch_param.run'
+args.query += ' ORDER BY batch_paramRatio.date, batch_paramRatio.run'
 
 # DB access
 # opens a connection to the database

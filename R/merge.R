@@ -20,7 +20,7 @@ tryCatch({
 if (variables$debug) {
     # change parameters here if debugging
     args = list(
-        admix = '../../isea_new_new_new/isea/output/admixturebynode.2015.Jun.09.01_50_10.txt',
+        admix = '../../isea_new_new_new/isea/output/admixturebynode.2015.Aug.12.06_21_07.txt',
         batch_param = '',
         output = '',
         progress = TRUE,
@@ -56,6 +56,10 @@ if (variables$debug) {
     parser$add_argument(
         '--failed', '-f', action='store_true',
         help = 'display failed runs to stderr'
+    )
+    parser$add_argument(
+        '--failed-file', '-ff', nargs = '?',
+        help = 'store failed runs to the specified file'
     )
 
     args = parser$parse_args()
@@ -102,8 +106,6 @@ param$csvTypes = sapply(
 admix$csvSubset = c('run', 'Label', variables$summaryNames, 'DemeSize')
 param$csvSubset = c('run', 'randomSeed', variables$paramNames)
 
-variables$firstLoop = TRUE
-
 if (args$failed) {
     # vector of failed runs
     failedRuns = c()
@@ -116,6 +118,8 @@ if (args$progress) {
     )
 }
 counter = 0L
+successCounter = 0L
+failedCounter = 0L
 
 # loops on every simulation
 repeat {
@@ -154,7 +158,7 @@ repeat {
         function(x) sub('\\d+(_src)?', '', x)
     )
 
-    if (variables$firstLoop) {
+    if (counter == 1L) {
         # gets a list of islands (only once, at the first run)
         variables$islands = unique(admix$df$Island)
     }
@@ -182,32 +186,40 @@ repeat {
             # adds this run to the list of failed runs
             failedRuns = c(failedRuns, admix$df$run[1L])
         }
-        # jumps to the next iteration of the loop without doing further work
-        next
-    }
-    # arrived to this point, this run has NOT failed
-
-    if (variables$firstLoop) {
-        # creates an 'aggregated' data frame once to be re-used for every run
-        aggregated = data.frame(
-            run = admix$df$run[1L],
-            Island = variables$islands
-        )
-        aggregated[, variables$summaryNames] = 0.0
+        failedCounter = failedCounter + 1L
+        # if no sink file for failed runs has been provided
+        if (is.null(args$failed_file)) {
+            # jumps to the next iteration of the loop without doing more work
+            next
+        }
     } else {
-        aggregated$run = admix$df$run[1L]
+        successCounter = successCounter + 1L
     }
-    # fills the 'aggregated' object for every island with data from demes
-    for (i in 1:length(variables$islands)) {
-        # gets the demes corresponding to that island
-        demesOfIsland = admix$df[
-            admix$df$Island == variables$islands[i],
-            variables$summaryNames
-        ]
-        # fills the mean values for every summary value
-        aggregated[i, variables$summaryNames] = colMeans(
-            demesOfIsland, na.rm = TRUE
-        )
+
+    if (!failed) {
+        # aggregation part
+        if (successCounter == 1L) {
+            # creates an 'aggregated' data frame to be re-used for every run
+            aggregated = data.frame(
+                run = admix$df$run[1L],
+                Island = variables$islands
+            )
+            aggregated[, variables$summaryNames] = 0.0
+        } else {
+            aggregated$run = admix$df$run[1L]
+        }
+        # fills the 'aggregated' object for every island with data from demes
+        for (i in 1:length(variables$islands)) {
+            # gets the demes corresponding to that island
+            demesOfIsland = admix$df[
+                admix$df$Island == variables$islands[i],
+                variables$summaryNames
+            ]
+            # fills the mean values for every summary value
+            aggregated[i, variables$summaryNames] = colMeans(
+                demesOfIsland, na.rm = TRUE
+            )
+        }
     }
 
     # gets parameters for this simulation
@@ -220,23 +232,39 @@ repeat {
     )[, param$csvSubset]
     close(csvConn)
 
-    # joins admix and param values
-    merged = merge(
-        param$df,
-        aggregated
-    )
+    if (failed) {
+        # joins admix (non-aggregated) and param values
+        merged = merge(
+            param$df,
+            admix$df
+        )
 
-    # writes as csv file to chosen output
-    write.table(
-        merged,
-        sep = ',',
-        file = args$output,
-        row.names = FALSE,
-        # writes the header only the first time
-        col.names = variables$firstLoop
-    )
+        # writes as csv file to chosen output for failed runs
+        write.table(
+            merged,
+            sep = ',',
+            file = args$failed_file, append = (failedCounter > 1L),
+            row.names = FALSE,
+            # writes the header only the first time a succesful run is written
+            col.names = (failedCounter == 1L)
+        )
+    } else {# success
+        # joins admix and param values
+        merged = merge(
+            param$df,
+            aggregated
+        )
 
-    variables$firstLoop = FALSE
+        # writes as csv file to chosen output
+        write.table(
+            merged,
+            sep = ',',
+            file = args$output, append = (successCounter > 1L),
+            row.names = FALSE,
+            # writes the header only the first time a succesful run is written
+            col.names = (successCounter == 1L)
+        )
+    }
 }
 # end of the main loop
 

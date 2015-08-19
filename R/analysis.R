@@ -18,15 +18,15 @@ suppressMessages(library(gridExtra))
 suppressMessages(library(vegan))# !high memory use! (needed for mantel.partial)
 
 # variables overwrite
-#variables$debug = TRUE
+variables$debug = TRUE
 
 if (variables$debug) {
     # change parameters here if debugging
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
-        admix = '../test/150710-abc/out.merged',
-        ABC = TRUE,
+        admix = '../2015_08_13/data.merged',
+        ABC = 'relative, 0.1, 0.05, 0.01',
         repeated = TRUE,
         verbose = TRUE
     )
@@ -48,8 +48,11 @@ if (variables$debug) {
         help = 'path to the admix file, defaults to stdin'
     )
     parser$add_argument(
-        '--ABC', '-a', action='store_true',
-        help = 'perform an ABC analysis'
+        '--ABC', '-a', nargs = '?',
+        help = paste(
+            'perform an ABC analysis, enter the type of tolerance',
+            '(absolute or relative) and the list of tolerance values'
+        )
     )
     parser$add_argument(
         '--repeated', '-r', action='store_true',
@@ -65,6 +68,14 @@ if (variables$debug) {
 
 if (variables$debug) {
     cat('executing in DEBUG mode, ignoring any command line argument\n')
+}
+
+if (!is.null(args$ABC)) {
+    parsed = strsplit(args$ABC, ' *[ ,] *')[[1]]
+    variables$ABC = list(
+        type = parsed[1],
+        taus = as.numeric(tail(parsed, -1))
+    )
 }
 
 # environment to store incoming data
@@ -124,7 +135,7 @@ summary$sensit = list(
     all = list(),
     aggr = data.frame()
 )
-if (!args$ABC) {
+if (is.null(args$ABC)) {
     # counts of unique parameter sets
     summary$counts = list(
         df = data.frame(),
@@ -205,16 +216,18 @@ repeat {
         randomSeeds = append(randomSeeds, data$df$randomSeed[1L])
     }
 
-    # melted simulation data for admixtures for every island
-    summary$sensit$all[[loop$counter]] = melt(
-        data$df[, c('Island', variables$summaryNames)],
-        id = 'Island'
-    )
+    if (is.null(args$ABC)) {
+        # melted simulation data for admixtures for every island
+        summary$sensit$all[[loop$counter]] = melt(
+            data$df[, c('Island', variables$summaryNames)],
+            id = 'Island'
+        )
+    }
 
     simuParams = data$df[1, variables$paramNames]
 
     # only for grid searches
-    if (!args$ABC) {
+    if (is.null(args$ABC)) {
         # if not already initialised, creates a data frame for the parameters
         if (nrow(summary$counts$df) == 0L) {
             summary$counts$df = simuParams
@@ -278,7 +291,7 @@ repeat {
         as.numeric(unlist(data$df[, c('AutosomeAdmixture', 'XChrAdmixture')])),
         ncol = 2
     )
-    if (args$ABC) {
+    if (!is.null(args$ABC)) {
         # prepare comparison information data frame with 1 rows for comp values
         compared = data$df[1, variables$paramNames]
     } else {
@@ -309,9 +322,10 @@ repeat {
         )$statistic
     )
     # add comparison information
-    if (args$ABC) {
+    if (!is.null(args$ABC)) {
         compared[, variables$ABCsummary] =
             c(msd, cor)
+        compared$randomSeed = data$df$randomSeed[1]
     } else {
         compared$value = c(msd, cor)
     }
@@ -320,7 +334,7 @@ repeat {
 
     # update displayed information if verbose mode is activated
     if (args$verbose) {
-        if (args$ABC) {
+        if (!is.null(args$ABC)) {
             text = '- analysis: ABC'
         } else {
             text = paste(
@@ -356,7 +370,7 @@ if (args$repeated) {
 }
 
 # only for grid searches
-if (!args$ABC) {
+if (is.null(args$ABC)) {
     # aggregates parameter sweep information...
 
     suppressMessages(library(XML))
@@ -397,20 +411,28 @@ if (args$verbose) {
     cat('now aggregating all the data\n')
 }
 
-# concatenate at once all the list filled earlier
+# concatenates at once all the list filled earlier and gc them
 # 3 lists of pointers to a lot of small memory blocks -> 3 big memory blocks
-summary$sensit$all = do.call('rbind', summary$sensit$all)
+if (is.null(args$ABC)) {
+    summary$sensit$all = do.call('rbind', summary$sensit$all)
+    invisible(gc())
+}
 summary$comp$all = do.call('rbind', summary$comp$all)
-summary$diff$all = do.call('rbind', summary$diff$all)
-# since we've overwritten references to the lists of pointers, ask R to gc them
 invisible(gc())
+if (is.null(args$ABC) && loop$type == 'sensitivity') {
+    summary$diff$all = do.call('rbind', summary$diff$all)
+    invisible(gc())
+}
 
 if (args$verbose) {
-    cat('now performing', if (args$ABC) 'ABC' else loop$type, 'analysis\n')
+    cat(
+        'now performing',
+        if (is.null(args$ABC)) loop$type else 'ABC', 'analysis\n'
+    )
 }
 
 # prepares the data for the visualisation, according to the type of analysis
-if (args$ABC) {
+if (!is.null(args$ABC)) {
     sourced = 'analysis-ABC.R'
 } else {
     # grid search
@@ -445,7 +467,8 @@ if (args$ABC) {
     # drops the unnecessary columns
     summary$comp$all = summary$comp$all[
         ,
-        c(changing, 'admixture', 'comparison', 'value')
+        #c(changing, 'admixture', 'comparison', 'value')
+        c(changing, 'admixture', 'comparison', 'value', 'randomSeed')
     ]
     summary$diff$all = summary$diff$all[, c(changing, 'Island', 'diffXAuto')]
 

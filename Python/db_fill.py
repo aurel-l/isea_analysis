@@ -38,7 +38,8 @@ var = {
     'param': [
         'run', 'date', 'migrationProb', 'startingDistributionFile',
         'modelVersion', 'randomSeed', 'poissonMean', 'initialDemeAgentNumber',
-        'graphFile', 'growthRate', 'marriageThres'
+        'graphFile', 'growthRate', 'marriageThres',
+        'migrationProbRatio', 'poissonMeanRatio'
     ],
     'admix': [
         'run', 'date', 'Island', 'DnaAdmixture', 'AutosomeAdmixture',
@@ -59,12 +60,12 @@ if (not os.path.isfile(var['merging_script'])):
 # SQL string templates
 var['sql'] = {
     # inserting parameter values to the batch_param table
-    'param': 'INSERT INTO batch_param ({}) values ({})'.format(
+    'param': 'INSERT INTO batch_paramRatio ({}) values ({})'.format(
         ', '.join(var['param']),
         ', '.join('%s' for _ in var['param'])
     ),
     # inserting admixture values to the admixtureByNode table
-    'admix': 'INSERT INTO admixtureByNode ({}) values ({})'.format(
+    'admix': 'INSERT INTO admixtureByNodeRatio ({}) values ({})'.format(
         ', '.join(var['admix']),
         ', '.join('%s' for _ in var['admix'])
     )
@@ -88,7 +89,9 @@ def param_generator(indices, date, version):
             row[indices['initialDemeAgentNumber']],
             row[indices['graphFile']].rsplit('/', 1)[-1],
             row[indices['growthRate']],
-            row[indices['marriageThres']]
+            row[indices['marriageThres']],
+            row[indices['migrationProbRatio']],
+            row[indices['poissonMeanRatio']]
         )
 
 
@@ -203,7 +206,7 @@ for f in args.files:
     cur.close()
     # gets the user input about commiting the changes
     # either from the arguments or asks for it
-    user_input = args.yes or input(
+    user_input = 'yes' if args.yes else input(
         'Are you sure you want to store these simulations in the DB [Y/n] '
     )
     # if the user is OK with the changes
