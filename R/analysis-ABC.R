@@ -30,75 +30,123 @@ abcData$score = rowMeans(abcData[, c('score_cor', 'score_MSD')])
 width = if (length(changingParams) > 4) variables$long else variables$short
 height = if (length(changingParams) > 4) variables$short else variables$long
 
-nValues = length(sumstat$score)
+nValues = length(abcData$score)
 
-#for (score in c('score_cor', 'score_MSD', 'score')) {
-for (score in c('score')) {
+for (score in c('score_cor', 'score_MSD', 'score')) {
+#for (score in c('score')) {
     ordered = abcData[
         order(abcData[, score], decreasing = TRUE),
-        c(score, changingParams)
+        c('randomSeed', score, changingParams)
     ]
 
-    if (rejectionType == 'relative') {
-        nAccepted = round(nValues * tau)
-        cuttingScore = ordered[nAccepted, score]
-        accepted = c(rep(TRUE, nAccepted), rep(FALSE, nValues - nAccepted))
-    } else {
-        cuttingScore = tau
-        accepted = ordered[, score] < tau
-        nAccepted = sum(accepted)
+    p1 = list()
+    for (i in 1:length(variables$ABC$taus)) {
+
+        tau = variables$ABC$taus[i]
+        if (variables$ABC$type == 'relative') {
+            nAccepted = round(nValues * tau)
+            cuttingScore = ordered[nValues - nAccepted, score]
+            accepted = c(rep(FALSE, nValues - nAccepted), rep(TRUE, nAccepted))
+        } else {
+            cuttingScore = tau
+            accepted = ordered[, score] < tau
+            nAccepted = sum(accepted)
+        }
+        accepted = factor(accepted, levels = c(FALSE, TRUE))
+        ordered$accepted = accepted
+
+        # density of scores
+        p1[[i]] = ggplot(ordered, aes_string(x = score))
+        p1[[i]] = p1[[i]] + geom_density(fill = 'grey30', colour = 'grey30')
+        p1[[i]] = p1[[i]] + annotate(
+            'rect', xmin = 0, xmax = cuttingScore, ymin = 0, ymax = Inf,
+            fill = 'green', alpha = 0.1
+        )
+        p1[[i]] = p1[[i]] + annotate(
+            'rect', xmin = cuttingScore, xmax = 1, ymin = 0, ymax = Inf,
+            fill = 'red', alpha = 0.1
+        )
+        p1[[i]] = p1[[i]] + scale_x_continuous(
+            limits = c(0, 1), name = clean(score)
+        )
+        p1[[i]] = p1[[i]] + ggtitle(paste0(
+            'distribution of ', score, ' (', nAccepted,
+            ' accepted simulations. τ=', tau, '. ', variables$ABC$type, ')'
+        ))
+
+
+        # density priors and posteriors
+        p2 = list()
+        for (i in 1L:length(changingParams)) {
+            p2[[i]] = ggplot(
+                ordered,
+                aes_string(
+                    x = changingParams[i], y = '..scaled..'
+                )
+            )
+            # priors
+            p2[[i]] = p2[[i]] + geom_density(
+                aes(fill = 'prior'),
+                alpha = 0.5, adjust = 0.5
+            )
+            # posteriors
+            p2[[i]] = p2[[i]] + geom_density(
+                aes(fill = 'posterior'),
+                data = ordered[ordered$accepted == TRUE, ],
+                alpha = 0.5, adjust = 0.5
+            )
+            p2[[i]] = p2[[i]] + scale_fill_manual(
+                name = 'distribution',
+                values = c(prior = 'red', posterior = 'green')
+            )
+            p2[[i]] = p2[[i]] + ggtitle(paste0(
+                'parameter distributions - ', score, '\n(', nAccepted,
+                ' accepted simulations. τ=', tau, '. ', variables$ABC$type, ')'
+            ))
+        }
+        g2 = do.call('arrangeGrob', c(p2, ncol = 2L))
+        if (variables$debug) {
+            print(g2)
+        } else {
+            filename = paste(
+                variables$now, 'distributions', score, tau, sep = '-'
+            )
+            #for (ext in c('png', 'pdf')) {
+            for (ext in c('png')) {
+                ggsave(
+                    plot = g2,
+                    filename = paste(filename, ext, sep = '.'),
+                    # landscape
+                    width = variables$long, height = variables$short,
+                    units = 'mm'
+                )
+            }
+        }
+
+        # exports accepted simulations to csv
+        write.table(
+            ordered[
+                ordered$accepted == TRUE,
+                c('randomSeed', score, changingParams)
+            ],
+            sep = ',',
+            file = paste0(
+                variables$now, '-accepted-', score, '-', tau, '.csv'
+            ),
+            row.names = FALSE
+        )
     }
-    accepted = factor(accepted, levels = c(FALSE, TRUE))
-    ordered$accepted = accepted
 
     # density of scores
-    p1 = ggplot(ordered, aes_string(x = score))
-    p1 = p1 + geom_density(fill = 'grey30', colour = 'grey30')
-    p1 = p1 + annotate(
-        'rect', xmin = 0, xmax = cuttingScore, ymin = 0, ymax = Inf,
-        fill = 'green', alpha = 0.1
-    )
-    p1 = p1 + annotate(
-        'rect', xmin = cuttingScore, xmax = 1, ymin = 0, ymax = Inf,
-        fill = 'red', alpha = 0.1
-    )
-    p1 = p1 + scale_x_continuous(limits = c(0, 1), name = clean(score))
-    p1 = p1 + ggtitle(paste0(
-        'distribution of ', score, ' (', nAccepted,
-        ' accepted simulations. τ=', tau, '. ', rejectionType, ')'
-    ))
+    g1 = do.call('arrangeGrob', c(p1, ncol = 2L))
     if (variables$debug) {
-        print(p1)
+        print(g1)
     } else {
         filename = paste0(variables$now, '-accepted-distribution-', score)
-        for (ext in c('png', 'pdf')) {
+        #for (ext in c('png', 'pdf')) {
+        for (ext in c('png')) {
             ggsave(
-                plot = p1,
-                filename = paste(filename, ext, sep = '.'),
-                # landscape
-                width = variables$long, height = variables$short, units = 'mm'
-            )
-        }
-    }
-
-    # density priors and posteriors
-    p2 = list()
-    for (i in 1L:length(changingParams)) {
-        p2[[i]] = ggplot(ordered, aes_string(x = changingParams[i], y = '..density..', fill = 'accepted'))
-        p2[[i]] = p2[[i]] + geom_density(position = 'identity')
-        #p2[[i]] = p2[[i]] + geom_density(
-        #    data = ordered$param[accepted, ]
-        #)
-    }
-    g2 = do.call('arrangeGrob', c(p2, ncol = 2L))
-
-    if (variables$debug) {
-        print(g2)
-    } else {
-        filename = paste0(variables$now, '-distributions-', score)
-        for (ext in c('png', 'pdf')) {
-            ggsave(
-                plot = g2,
+                plot = g1,
                 filename = paste(filename, ext, sep = '.'),
                 # landscape
                 width = variables$long, height = variables$short, units = 'mm'
@@ -118,39 +166,27 @@ for (score in c('score')) {
                 )
             )
             p3[[params]] = p3[[params]] + geom_point(
-                aes_string(alpha = score), size = 1, colour = 'black'
+                aes_string(colour = score), size = 0.01
             )
             if (variables$ABC$type == 'relative') {
-                p3[[params]] = p3[[params]] + scale_alpha_continuous(
-                    range = c(1, 0)
+                p3[[params]] = p3[[params]] + scale_colour_continuous(
+                    low = 'black', high = 'white'
                 )
             } else {# absolute
-                p3[[params]] = p3[[params]] + scale_alpha_continuous(
+                p3[[params]] = p3[[params]] + scale_colour_continuous(
                     low = 'black', high = 'white',
                     limits = c(0, 1)
                 )
             }
-#             if (variables$ABC$type == 'relative') {
-#                 p3[[params]] = p3[[params]] + scale_colour_continuous(
-#                     low = 'black', high = 'white'
-#                 )
-#             } else {# absolute
-#                 p3[[params]] = p3[[params]] + scale_colour_continuous(
-#                     low = 'black', high = 'white',
-#                     limits = c(0, 1)
-#                 )
-#             }
         }
     }
     g3 = do.call('arrangeGrob', c(p3, ncol = 2L))
-    #g3 = ggplot(melted, aes(score, score))
-    #g3 = g3 + geom_point(aes_string(colour = score))
-    #g3 = g3 + facet_grid(variable ~ variable)
     if (variables$debug) {
         print(g3)
     } else {
         filename = paste0(variables$now, '-scatter-', score)
-        for (ext in c('png', 'pdf')) {
+        #for (ext in c('png', 'pdf')) {
+        for (ext in c('png')) {
             ggsave(
                 plot = g3,
                 filename = paste(filename, ext, sep = '.'),

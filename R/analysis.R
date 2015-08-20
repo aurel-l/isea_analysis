@@ -18,14 +18,14 @@ suppressMessages(library(gridExtra))
 suppressMessages(library(vegan))# !high memory use! (needed for mantel.partial)
 
 # variables overwrite
-variables$debug = TRUE
+#variables$debug = TRUE
 
 if (variables$debug) {
     # change parameters here if debugging
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
-        admix = '../2015_08_13/data.merged',
+        admix = '../2015_08_13/test-subset.merged',
         ABC = 'relative, 0.1, 0.05, 0.01',
         repeated = TRUE,
         verbose = TRUE
@@ -172,7 +172,11 @@ repeat {
     # resize lists of pointers if necessary
     if (loop$counter == summary$size) {
         # new size will be the double of the old size
-        summary$size = summary$size * 2L
+        if (summary$size == 0) {
+            summary$size = 1L
+        } else {
+            summary$size = summary$size * 2L
+        }
         # reallocate memory for pointers
         length(summary$sensit$all) = summary$size
         length(summary$comp$all) = summary$size
