@@ -150,6 +150,11 @@ repeat {
     )[, admix$csvSubset]
     close(csvConn)
 
+    # checks that the block of data only contains rows from 1 single simulation
+    if (length(unique(admix$df$run)) > 1) {
+        stop('Uh-oh, this block contains rows from more than one simulation')
+    }
+
     # adds island information from label
     admix$df['Island'] = lapply(
         # from the Label
@@ -231,6 +236,11 @@ repeat {
         col.names = param$header
     )[, param$csvSubset]
     close(csvConn)
+
+    # checks that the admixture and parameter data match
+    if (admix$df$run[1] != param$df$run) {
+        stop('Uh-oh, admixture and parameter data don\'t match')
+    }
 
     if (failed) {
         # joins admix (non-aggregated) and param values

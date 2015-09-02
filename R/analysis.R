@@ -25,8 +25,8 @@ if (variables$debug) {
     args = list(
         order = '../Data/isea_admixture_data_for_comparison_2.csv',
         real = '../Data/isea_admixture_data_for_comparison_2.csv',
-        admix = '../2015_08_13/test-subset.merged',
-        ABC = 'relative, 0.1, 0.05, 0.01',
+        admix = '../2015_08_24/merged.dat',
+        ABC = 'threshold, 0.1 0.05 0.01',
         repeated = TRUE,
         verbose = TRUE
     )
@@ -74,8 +74,13 @@ if (!is.null(args$ABC)) {
     parsed = strsplit(args$ABC, ' *[ ,] *')[[1]]
     variables$ABC = list(
         type = parsed[1],
-        taus = as.numeric(tail(parsed, -1))
+        tVector = as.numeric(tail(parsed, -1))
     )
+    if (!(variables$ABC$type %in% c('threshold', 'tolerance'))) {
+        stop(paste(
+            variables$ABC$type, 'is not valid (try "tolerance" or "threshold")'
+        ))
+    }
 }
 
 # environment to store incoming data
@@ -205,8 +210,12 @@ repeat {
         header = FALSE,
         col.names = data$header
     )
-    # close the connection immediately after reading it
+    # closes the connection immediately after reading it
     close(csvConn)
+    # checks that the block of data only contains rows from 1 single simulation
+    if (length(unique(data$df$run)) > 1) {
+        stop('Uh-oh, this block contains rows from more than one simulation')
+    }
     # transforms the islands to factors
     data$df$Island = factor(data$df$Island, levels = ref$order$Island)
     # order the islands in the simulation as specified by the order information
@@ -273,7 +282,7 @@ repeat {
                 loop$type = 'sensitivity'
             } else {
                 stop(paste(
-                    'cannot perform analysis on', changing,
+                    'cannot perform analysis on', loop$changing,
                     'changing parameters'
                 ))
             }
@@ -469,11 +478,17 @@ if (!is.null(args$ABC)) {
     }
 
     # drops the unnecessary columns
-    summary$comp$all = summary$comp$all[
-        ,
-        #c(changing, 'admixture', 'comparison', 'value')
-        c(changing, 'admixture', 'comparison', 'value', 'randomSeed')
-    ]
+    if (is.null(args$ABC)) {# not ABC
+        summary$comp$all = summary$comp$all[
+            ,
+            c(changing, 'admixture', 'comparison', 'value')
+        ]
+    } else {# ABC
+        summary$comp$all = summary$comp$all[
+            ,
+            c(changing, 'admixture', 'comparison', 'value', 'randomSeed')
+        ]
+    }
     summary$diff$all = summary$diff$all[, c(changing, 'Island', 'diffXAuto')]
 
     if (loop$changing == 2) {
