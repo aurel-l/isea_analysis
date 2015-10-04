@@ -432,7 +432,7 @@ if (is.null(args$ABC)) {
 }
 summary$comp$all = do.call('rbind', summary$comp$all)
 invisible(gc())
-if (is.null(args$ABC) && loop$type == 'sensitivity') {
+if (is.null(args$ABC)) {
     summary$diff$all = do.call('rbind', summary$diff$all)
     invisible(gc())
 }

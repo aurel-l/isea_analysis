@@ -107,3 +107,6 @@ if (!variables$debug) {
         )
     }
 }
+# annoying bug, arrangeGrob always opens a Rplots.pdf file
+# removes it
+unlink('Rplots.pdf')
